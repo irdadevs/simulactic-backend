@@ -1,6 +1,12 @@
 import { Uuid } from "../../../../domain/aggregates/User";
 import { ErrorFactory } from "../../../../utils/errors/Error.map";
 import { GalaxyCacheService } from "../../../app-services/galaxies/GalaxyCache.service";
+import { Asteroid } from "../../../../domain/aggregates/Asteroid";
+import { Galaxy } from "../../../../domain/aggregates/Galaxy";
+import { Moon } from "../../../../domain/aggregates/Moon";
+import { Planet } from "../../../../domain/aggregates/Planet";
+import { Star } from "../../../../domain/aggregates/Star";
+import { System } from "../../../../domain/aggregates/System";
 import { IAsteroid } from "../../../interfaces/Asteroid.port";
 import { IGalaxy } from "../../../interfaces/Galaxy.port";
 import { IMoon } from "../../../interfaces/Moon.port";
@@ -9,15 +15,15 @@ import { IStar } from "../../../interfaces/Star.port";
 import { ISystem } from "../../../interfaces/System.port";
 
 export type PopulatedGalaxy = {
-  galaxy: Record<string, unknown>;
+  galaxy: Galaxy;
   systems: Array<{
-    system: Record<string, unknown>;
-    stars: Array<Record<string, unknown>>;
+    system: System;
+    stars: Star[];
     planets: Array<{
-      planet: Record<string, unknown>;
-      moons: Array<Record<string, unknown>>;
+      planet: Planet;
+      moons: Moon[];
     }>;
-    asteroids: Array<Record<string, unknown>>;
+    asteroids: Asteroid[];
   }>;
 };
 
@@ -56,28 +62,26 @@ export class PopulateGalaxy {
 
         const planets = await Promise.all(
           planetsResult.rows.map(async (planet) => {
-            const moonsResult = await this.moonRepo.findByPlanet(
-              Uuid.create(planet.id),
-            );
+            const moonsResult = await this.moonRepo.findByPlanet(Uuid.create(planet.id));
 
             return {
-              planet: planet.toJSON(),
-              moons: moonsResult.rows.map((moon) => moon.toJSON()),
+              planet,
+              moons: moonsResult.rows,
             };
           }),
         );
 
         return {
-          system: system.toJSON(),
-          stars: starsResult.rows.map((star) => star.toJSON()),
+          system,
+          stars: starsResult.rows,
           planets,
-          asteroids: asteroidsResult.rows.map((asteroid) => asteroid.toJSON()),
+          asteroids: asteroidsResult.rows,
         };
       }),
     );
 
     const populated = {
-      galaxy: galaxy.toJSON(),
+      galaxy,
       systems,
     };
     await this.galaxyCache.setPopulate(galaxyId.toString(), populated);

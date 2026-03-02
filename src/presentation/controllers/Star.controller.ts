@@ -18,6 +18,7 @@ import { ChangeStarOrbitalDTO } from "../security/stars/ChangeStarOrbital.dto";
 import { ChangeStarStarterOrbitalDTO } from "../security/stars/ChangeStarStarterOrbital.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentStar } from "../presenters/Aggregate.presenter";
 
 export class StarController {
   constructor(
@@ -64,7 +65,10 @@ export class StarController {
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
 
       const result = await this.listStarsBySystem.execute(Uuid.create(parsed.data.systemId));
-      return res.status(200).json(result);
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentStar(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -79,7 +83,7 @@ export class StarController {
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
 
       const star = await this.findStar.byId(Uuid.create(parsed.data.id));
-      return res.status(200).json(star);
+      return res.status(200).json(star ? presentStar(star) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -96,7 +100,7 @@ export class StarController {
         if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
 
-      return res.status(200).json(star);
+      return res.status(200).json(star ? presentStar(star) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

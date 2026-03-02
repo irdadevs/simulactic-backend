@@ -8,6 +8,7 @@ import { FindLogByIdDTO } from "../security/logs/FindLogById.dto";
 import { ListLogsDTO } from "../security/logs/ListLogs.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentLog, presentLogAdmin } from "../presenters/Aggregate.presenter";
 
 export class LogController {
   constructor(
@@ -17,12 +18,19 @@ export class LogController {
     private readonly listLogs: ListLogs,
   ) {}
 
+  private wantsDashboardView(req: Request): boolean {
+    return req.auth.userRole === "Admin" && req.query.view === "dashboard";
+  }
+
   public create = async (req: Request, res: Response) => {
     try {
       const parsed = CreateLogDTO.safeParse(req.body);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const created = await this.createLog.execute(parsed.data);
-      return res.status(201).json(created);
+      if (this.wantsDashboardView(req)) {
+        return res.status(201).json(presentLogAdmin(created));
+      }
+      return res.status(201).json(presentLog(created));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -44,7 +52,11 @@ export class LogController {
       const parsed = FindLogByIdDTO.safeParse(req.params);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const log = await this.findLog.byId(parsed.data.id);
-      return res.status(200).json(log);
+      if (!log) return res.status(200).json(null);
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json(presentLogAdmin(log));
+      }
+      return res.status(200).json(presentLog(log));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -55,7 +67,11 @@ export class LogController {
       const parsed = ListLogsDTO.safeParse(req.query);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const logs = await this.listLogs.execute(parsed.data);
-      return res.status(200).json(logs);
+      const mapLog = this.wantsDashboardView(req) ? presentLogAdmin : presentLog;
+      return res.status(200).json({
+        rows: logs.rows.map((row) => mapLog(row)),
+        total: logs.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

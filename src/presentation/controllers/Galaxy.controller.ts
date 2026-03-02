@@ -17,6 +17,14 @@ import { ChangeGalaxyNameDTO } from "../security/galaxies/ChangeGalaxyName.dto";
 import { ChangeGalaxyShapeDTO } from "../security/galaxies/ChangeGalaxyShape.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import {
+  presentAsteroid,
+  presentGalaxy,
+  presentMoon,
+  presentPlanet,
+  presentStar,
+  presentSystem,
+} from "../presenters/Aggregate.presenter";
 
 export class GalaxyController {
   constructor(
@@ -71,7 +79,7 @@ export class GalaxyController {
         ...parsed.data,
         ownerId: req.auth.userId,
       });
-      return res.status(201).json(galaxy);
+      return res.status(201).json(presentGalaxy(galaxy));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -83,11 +91,7 @@ export class GalaxyController {
       if (!parsedParams.success) {
         return invalidBody(res, parsedParams.error);
       }
-      const canAccess = await this.assertGalaxyAccess(
-        req,
-        res,
-        parsedParams.data.id,
-      );
+      const canAccess = await this.assertGalaxyAccess(req, res, parsedParams.data.id);
       if (!canAccess) {
         return res;
       }
@@ -97,10 +101,7 @@ export class GalaxyController {
         return invalidBody(res, parsedBody.error);
       }
 
-      await this.changeGalaxyName.execute(
-        Uuid.create(parsedParams.data.id),
-        parsedBody.data,
-      );
+      await this.changeGalaxyName.execute(Uuid.create(parsedParams.data.id), parsedBody.data);
 
       return res.status(204).send();
     } catch (err: unknown) {
@@ -114,11 +115,7 @@ export class GalaxyController {
       if (!parsedParams.success) {
         return invalidBody(res, parsedParams.error);
       }
-      const canAccess = await this.assertGalaxyAccess(
-        req,
-        res,
-        parsedParams.data.id,
-      );
+      const canAccess = await this.assertGalaxyAccess(req, res, parsedParams.data.id);
       if (!canAccess) {
         return res;
       }
@@ -128,10 +125,7 @@ export class GalaxyController {
         return invalidBody(res, parsedBody.error);
       }
 
-      await this.changeGalaxyShape.execute(
-        Uuid.create(parsedParams.data.id),
-        parsedBody.data,
-      );
+      await this.changeGalaxyShape.execute(Uuid.create(parsedParams.data.id), parsedBody.data);
 
       return res.status(204).send();
     } catch (err: unknown) {
@@ -166,12 +160,15 @@ export class GalaxyController {
         }
 
         const result = await this.listGalaxies.execute(parsed.data);
-        return res.status(200).json(result);
+        return res.status(200).json({
+          rows: result.rows.map((row) => presentGalaxy(row)),
+          total: result.total,
+        });
       }
 
       const galaxy = await this.findGalaxy.byOwner(Uuid.create(req.auth.userId));
       return res.status(200).json({
-        rows: galaxy ? [galaxy] : [],
+        rows: galaxy ? [presentGalaxy(galaxy)] : [],
         total: galaxy ? 1 : 0,
       });
     } catch (err: unknown) {
@@ -191,7 +188,7 @@ export class GalaxyController {
       }
 
       const galaxy = await this.findGalaxy.byId(Uuid.create(parsed.data.id));
-      return res.status(200).json(galaxy);
+      return res.status(200).json(galaxy ? presentGalaxy(galaxy) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -210,10 +207,8 @@ export class GalaxyController {
         });
       }
 
-      const galaxy = await this.findGalaxy.byOwner(
-        Uuid.create(parsed.data.ownerId),
-      );
-      return res.status(200).json(galaxy);
+      const galaxy = await this.findGalaxy.byOwner(Uuid.create(parsed.data.ownerId));
+      return res.status(200).json(galaxy ? presentGalaxy(galaxy) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -226,16 +221,14 @@ export class GalaxyController {
         return invalidBody(res, parsed.error);
       }
 
-      const galaxy = await this.findGalaxy.byName(
-        GalaxyName.create(parsed.data.name),
-      );
+      const galaxy = await this.findGalaxy.byName(GalaxyName.create(parsed.data.name));
       if (galaxy && !this.isAdmin(req) && galaxy.ownerId !== req.auth.userId) {
         return res.status(403).json({
           ok: false,
           error: "FORBIDDEN",
         });
       }
-      return res.status(200).json(galaxy);
+      return res.status(200).json(galaxy ? presentGalaxy(galaxy) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -252,10 +245,19 @@ export class GalaxyController {
         return res;
       }
 
-      const galaxy = await this.populateGalaxy.execute(
-        Uuid.create(parsed.data.id),
-      );
-      return res.status(200).json(galaxy);
+      const galaxy = await this.populateGalaxy.execute(Uuid.create(parsed.data.id));
+      return res.status(200).json({
+        galaxy: presentGalaxy(galaxy.galaxy),
+        systems: galaxy.systems.map((systemNode) => ({
+          system: presentSystem(systemNode.system),
+          stars: systemNode.stars.map((star) => presentStar(star)),
+          planets: systemNode.planets.map((planetNode) => ({
+            planet: presentPlanet(planetNode.planet),
+            moons: planetNode.moons.map((moon) => presentMoon(moon)),
+          })),
+          asteroids: systemNode.asteroids.map((asteroid) => presentAsteroid(asteroid)),
+        })),
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

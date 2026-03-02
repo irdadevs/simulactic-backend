@@ -161,6 +161,35 @@ export function buildTestApi(): {
       softDelete: jest.fn(async () => undefined),
       restore: jest.fn(async () => undefined),
     },
+    securityBanService: {
+      isUserBanned: jest.fn(async () => false),
+      isIpBanned: jest.fn(async () => false),
+      normalizeIp: jest.fn((value: string) => value),
+      banUserByAdmin: jest.fn(async (input: Record<string, unknown>) => ({
+        id: "1",
+        userId: input.targetUserId,
+        reason: input.reason ?? "manual",
+        source: "admin",
+        bannedBy: input.actorUserId ?? null,
+        createdAt: new Date(),
+        expiresAt: input.expiresAt ?? null,
+      })),
+      unbanUserByAdmin: jest.fn(async () => 1),
+      banIpByAdmin: jest.fn(async (input: Record<string, unknown>) => ({
+        id: "1",
+        ipAddress: input.ipAddress,
+        reason: input.reason ?? "manual",
+        source: "admin",
+        bannedBy: input.actorUserId ?? null,
+        createdAt: new Date(),
+        expiresAt: input.expiresAt ?? null,
+      })),
+      unbanIpByAdmin: jest.fn(async () => 1),
+      listActiveBans: jest.fn(async () => ({ users: [], ips: [] })),
+      registerSuspiciousSignal: jest.fn(async () => undefined),
+      assertIpNotBanned: jest.fn(async () => undefined),
+      assertUserNotBanned: jest.fn(async () => undefined),
+    },
     createGalaxy: {
       execute: jest.fn(
         async (payload: {
@@ -308,6 +337,22 @@ export function buildTestApi(): {
         level: "warn",
         category: "security",
         message: "Forbidden",
+        userId: IDS.userA,
+        requestId: "req-mock-1",
+        method: "GET",
+        path: "/api/v1/galaxies",
+        statusCode: 403,
+        ip: "192.168.1.50",
+        userAgent: "MockedAgent/1.0",
+        fingerprint: "fp_mocked_1234567890",
+        tags: ["auth", "forbidden"],
+        context: {
+          reason: "ownership_denied",
+          authorization: "Bearer secret-token",
+        },
+        occurredAt: new Date(),
+        resolvedAt: null,
+        resolvedBy: null,
       })),
     },
     listLogs: {
@@ -328,6 +373,10 @@ export function buildTestApi(): {
         source: "express",
         durationMs: 10,
         success: true,
+        userId: IDS.userA,
+        requestId: "req-metric-1",
+        tags: { feature: "dashboard" },
+        context: { authorization: "Bearer metric-token" },
         occurredAt: new Date(),
       })),
     },
@@ -369,7 +418,18 @@ export function buildTestApi(): {
         id,
         userId: IDS.userA,
         donationType: "monthly",
+        amountMinor: 999,
+        currency: "USD",
         status: "active",
+        provider: "stripe",
+        providerSessionId: "cs_test_dashboard_sensitive",
+        providerCustomerId: "cus_dashboard_sensitive",
+        providerSubscriptionId: "sub_dashboard_sensitive",
+        currentPeriodStart: new Date("2026-01-01T00:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-02-01T00:00:00.000Z"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        canceledAt: null,
       })),
       byProviderSessionId: jest.fn(async () => ({
         id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
@@ -390,6 +450,7 @@ export function buildTestApi(): {
     mocks.authService as any,
     mocks.platformService as any,
     mocks.lifecycleService as any,
+    mocks.securityBanService as any,
   );
 
   const galaxyController = new GalaxyController(
@@ -474,7 +535,7 @@ export function buildTestApi(): {
 
   const app = Express();
   app.use(Express.json());
-  const auth = new AuthMiddleware(new FakeJwt(), {});
+  const auth = new AuthMiddleware(new FakeJwt(), {}, mocks.securityBanService as any);
   const scope = new ScopeMiddleware();
 
   app.use(

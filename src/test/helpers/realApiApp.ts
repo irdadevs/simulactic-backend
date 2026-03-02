@@ -4,6 +4,7 @@ import { AuthMiddleware } from "../../presentation/middlewares/Auth.middleware";
 import { ScopeMiddleware } from "../../presentation/middlewares/Scope.middleware.ts";
 import { RequestAuditMiddleware } from "../../presentation/middlewares/RequestAudit.middleware";
 import { PerformanceMetricsMiddleware } from "../../presentation/middlewares/PerformanceMetrics.middleware";
+import { SecurityGuardMiddleware } from "../../presentation/middlewares/SecurityGuard.middleware";
 import { UserController } from "../../presentation/controllers/User.controller";
 import { GalaxyController } from "../../presentation/controllers/Galaxy.controller";
 import { SystemController } from "../../presentation/controllers/System.controller";
@@ -25,6 +26,7 @@ import LogRepo from "../../infra/repos/Log.repository";
 import MetricRepo from "../../infra/repos/Metric.repository";
 import DonationRepo from "../../infra/repos/Donation.repository";
 import { SessionRepo } from "../../infra/repos/Session.repository";
+import { SecurityBanRepo } from "../../infra/repos/SecurityBan.repository";
 import { HasherRepo } from "../../infra/repos/Hasher.repository";
 import { MailerRepo } from "../../infra/repos/Mailer.repository";
 import JwtService from "../../infra/repos/Jwt.repository";
@@ -45,6 +47,7 @@ import { RefreshSession } from "../../app/use-cases/commands/users/RefreshSessio
 import { LogoutSession } from "../../app/use-cases/commands/users/LogoutSession.command";
 import { LogoutAllSessions } from "../../app/use-cases/commands/users/LogoutAllSessions.command";
 import { AuthService } from "../../app/app-services/users/Auth.service";
+import { SecurityBanService } from "../../app/app-services/security/SecurityBan.service";
 import { PlatformService } from "../../app/app-services/users/Platform.service";
 import { LifecycleService } from "../../app/app-services/users/Lifecycle.service";
 import { UserCacheService } from "../../app/app-services/users/UserCache.service";
@@ -173,6 +176,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const metricRepo = new MetricRepo(ctx.db);
   const donationRepo = new DonationRepo(ctx.db);
   const sessionRepo = new SessionRepo(ctx.db._getPool());
+  const securityBanRepo = new SecurityBanRepo(ctx.db);
   const hasher = new HasherRepo();
   const mailer = new MailerRepo();
   const jwtService = new JwtService();
@@ -186,6 +190,13 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const logCache = new LogCacheService(ctx.cache);
   const metricCache = new MetricCacheService(ctx.cache);
   const donationCache = new DonationCacheService(ctx.cache);
+  const securityBanService = new SecurityBanService(
+    securityBanRepo,
+    userRepo,
+    sessionRepo,
+    userCache,
+    ctx.cache,
+  );
   const paymentGateway = new FakePaymentGateway();
 
   const healthCheck = new HealthQuery();
@@ -371,6 +382,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     jwtService,
     hasher,
     userRepo,
+    securityBanService,
   );
   const platformService = new PlatformService(
     signupUser,
@@ -390,6 +402,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     authService,
     platformService,
     lifecycleService,
+    securityBanService,
   );
   const galaxyController = new GalaxyController(
     createGalaxy,
@@ -461,19 +474,25 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     listDonations,
   );
 
-  const authMiddleware = new AuthMiddleware(jwtService, {
-    issuer: process.env.JWT_ISSUER,
-    audience: process.env.JWT_AUDIENCE,
-  });
+  const authMiddleware = new AuthMiddleware(
+    jwtService,
+    {
+      issuer: process.env.JWT_ISSUER,
+      audience: process.env.JWT_AUDIENCE,
+    },
+    securityBanService,
+  );
   const scopeMiddleware = new ScopeMiddleware();
-  const requestAuditMiddleware = new RequestAuditMiddleware(createLog);
+  const requestAuditMiddleware = new RequestAuditMiddleware(createLog, securityBanService);
   const performanceMetricsMiddleware = new PerformanceMetricsMiddleware(trackMetric);
+  const securityGuardMiddleware = new SecurityGuardMiddleware(securityBanService);
 
   const app = Express();
   app.use(Express.json());
   app.use(requestAuditMiddleware.bindRequestId());
   app.use(performanceMetricsMiddleware.captureHttpDuration());
   app.use(requestAuditMiddleware.logResponse());
+  app.use(securityGuardMiddleware.blockBannedIp());
   app.use(
     buildApiRouter({
       userController,

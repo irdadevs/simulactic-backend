@@ -17,6 +17,7 @@ import { ChangeMoonSizeDTO } from "../security/moons/ChangeMoonSize.dto";
 import { ChangeMoonOrbitalDTO } from "../security/moons/ChangeMoonOrbital.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentMoon } from "../presenters/Aggregate.presenter";
 
 export class MoonController {
   constructor(
@@ -30,7 +31,9 @@ export class MoonController {
     private readonly findGalaxy: FindGalaxy,
   ) {}
 
-  private isAdmin(req: Request): boolean { return req.auth.userRole === "Admin"; }
+  private isAdmin(req: Request): boolean {
+    return req.auth.userRole === "Admin";
+  }
 
   private async canAccessGalaxy(req: Request, galaxyId: string): Promise<boolean> {
     if (this.isAdmin(req)) return true;
@@ -61,7 +64,10 @@ export class MoonController {
       const canAccess = await this.canAccessPlanet(req, parsed.data.planetId);
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       const result = await this.listMoonsByPlanet.execute(Uuid.create(parsed.data.planetId));
-      return res.status(200).json(result);
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentMoon(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -74,7 +80,7 @@ export class MoonController {
       const canAccess = await this.canAccessMoon(req, parsed.data.id);
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       const moon = await this.findMoon.byId(Uuid.create(parsed.data.id));
-      return res.status(200).json(moon);
+      return res.status(200).json(moon ? presentMoon(moon) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -89,7 +95,7 @@ export class MoonController {
         const canAccess = await this.canAccessPlanet(req, moon.planetId);
         if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
-      return res.status(200).json(moon);
+      return res.status(200).json(moon ? presentMoon(moon) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

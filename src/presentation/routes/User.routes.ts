@@ -102,6 +102,24 @@ export function UserRoutes(
     },
     {
       method: "get",
+      path: "/bans",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.listActiveBans,
+    },
+    {
+      method: "post",
+      path: "/bans/ip",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.banIp,
+    },
+    {
+      method: "post",
+      path: "/bans/ip/unban",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.unbanIp,
+    },
+    {
+      method: "get",
       path: "/:id",
       before: [auth.requireAuth(), auth.requireRoles("Admin")],
       handler: ctrl.findUserById,
@@ -111,6 +129,18 @@ export function UserRoutes(
       path: "/:id/role",
       before: [auth.requireAuth(), auth.requireRoles("Admin")],
       handler: ctrl.changeRole,
+    },
+    {
+      method: "post",
+      path: "/:id/ban",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.banUser,
+    },
+    {
+      method: "post",
+      path: "/:id/unban",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.unbanUser,
     },
     {
       method: "delete",

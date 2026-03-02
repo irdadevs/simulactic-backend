@@ -9,6 +9,7 @@ import { LogoutSession } from "../../use-cases/commands/users/LogoutSession.comm
 import { LogoutAllSessions } from "../../use-cases/commands/users/LogoutAllSessions.command";
 import { IUser } from "../../interfaces/User.port";
 import { Uuid } from "../../../domain/aggregates/User";
+import { SecurityBanService } from "../security/SecurityBan.service";
 
 export class AuthService {
   constructor(
@@ -20,10 +21,16 @@ export class AuthService {
     private readonly jwt: IJWT,
     private readonly hasher: IHasher,
     private readonly userRepo: IUser,
+    private readonly securityBan: SecurityBanService,
   ) {}
 
   async login(dto: LoginDTO, meta?: { userAgent?: string; ip?: string }) {
+    if (meta?.ip) {
+      await this.securityBan.assertIpNotBanned(meta.ip);
+    }
+
     const user = await this.loginUser.execute(dto);
+    await this.securityBan.assertUserNotBanned(user.id);
 
     const sessionId = randomUUID();
 

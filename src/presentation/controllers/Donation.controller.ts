@@ -11,6 +11,7 @@ import { ListDonationsDTO } from "../security/donations/ListDonations.dto";
 import { CancelDonationDTO } from "../security/donations/CancelDonation.dto";
 import invalidBody from "../../utils/invalidBody";
 import errorHandler from "../../utils/errors/Errors.handler";
+import { presentDonation, presentDonationAdmin } from "../presenters/Aggregate.presenter";
 
 export class DonationController {
   constructor(
@@ -23,6 +24,10 @@ export class DonationController {
 
   private isAdmin(req: Request): boolean {
     return req.auth.userRole === "Admin";
+  }
+
+  private wantsDashboardView(req: Request): boolean {
+    return this.isAdmin(req) && req.query.view === "dashboard";
   }
 
   public createCheckout = async (req: Request, res: Response) => {
@@ -97,7 +102,10 @@ export class DonationController {
         return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
 
-      return res.status(200).json(donation);
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json(presentDonationAdmin(donation));
+      }
+      return res.status(200).json(presentDonation(donation));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -111,12 +119,16 @@ export class DonationController {
       const query = this.isAdmin(req)
         ? parsed.data
         : {
-          ...parsed.data,
-          userId: req.auth.userId,
-        };
+            ...parsed.data,
+            userId: req.auth.userId,
+          };
 
       const result = await this.listDonations.execute(query);
-      return res.status(200).json(result);
+      const mapDonation = this.wantsDashboardView(req) ? presentDonationAdmin : presentDonation;
+      return res.status(200).json({
+        rows: result.rows.map((row) => mapDonation(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

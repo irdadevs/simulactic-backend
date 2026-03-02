@@ -124,4 +124,61 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
 
     expect(mocks.createDonationCheckout.execute).toHaveBeenCalled();
   });
+
+  test("returns extended but sanitized admin dashboard user view", async () => {
+    const { app } = buildTestApi();
+    const response = await request(app)
+      .get(`/api/v1/users/${IDS.userA}?view=dashboard`)
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(response.body.user).toHaveProperty("verificationCodeActive");
+    expect(response.body.user).toHaveProperty("verificationCodeExpiresAt");
+    expect(response.body.user).not.toHaveProperty("passwordHash");
+    expect(response.body.user).not.toHaveProperty("verificationCode");
+  });
+
+  test("returns extended dashboard donation view with masked provider identifiers", async () => {
+    const { app } = buildTestApi();
+    const response = await request(app)
+      .get("/api/v1/donations/dddddddd-dddd-4ddd-8ddd-dddddddddddd?view=dashboard")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(response.body).toHaveProperty("provider", "stripe");
+    expect(response.body).toHaveProperty("providerSessionIdMasked");
+    expect(response.body).not.toHaveProperty("providerSessionId");
+  });
+
+  test("allows admin to ban a user", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .post(`/api/v1/users/${IDS.userB}/ban`)
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .send({ reason: "Brute force attempts detected" })
+      .expect(201);
+
+    expect(mocks.securityBanService.banUserByAdmin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetUserId: IDS.userB,
+        actorUserId: IDS.admin,
+      }),
+    );
+  });
+
+  test("allows admin to ban an ip", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .post("/api/v1/users/bans/ip")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .send({ ipAddress: "10.0.0.5", reason: "DDoS traffic burst" })
+      .expect(201);
+
+    expect(mocks.securityBanService.banIpByAdmin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ipAddress: "10.0.0.5",
+        actorUserId: IDS.admin,
+      }),
+    );
+  });
 });
