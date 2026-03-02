@@ -18,6 +18,7 @@ import { ChangeAsteroidSizeDTO } from "../security/asteroids/ChangeAsteroidSize.
 import { ChangeAsteroidOrbitalDTO } from "../security/asteroids/ChangeAsteroidOrbital.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentAsteroid } from "../presenters/Aggregate.presenter";
 
 export class AsteroidController {
   constructor(
@@ -31,7 +32,9 @@ export class AsteroidController {
     private readonly findGalaxy: FindGalaxy,
   ) {}
 
-  private isAdmin(req: Request): boolean { return req.auth.userRole === "Admin"; }
+  private isAdmin(req: Request): boolean {
+    return req.auth.userRole === "Admin";
+  }
 
   private async canAccessGalaxy(req: Request, galaxyId: string): Promise<boolean> {
     if (this.isAdmin(req)) return true;
@@ -60,7 +63,10 @@ export class AsteroidController {
       const canAccess = await this.canAccessSystem(req, parsed.data.systemId);
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       const result = await this.listAsteroidsBySystem.execute(Uuid.create(parsed.data.systemId));
-      return res.status(200).json(result);
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentAsteroid(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -73,7 +79,7 @@ export class AsteroidController {
       const canAccess = await this.canAccessAsteroid(req, parsed.data.id);
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       const asteroid = await this.findAsteroid.byId(Uuid.create(parsed.data.id));
-      return res.status(200).json(asteroid);
+      return res.status(200).json(asteroid ? presentAsteroid(asteroid) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -88,7 +94,7 @@ export class AsteroidController {
         const canAccess = await this.canAccessSystem(req, asteroid.systemId);
         if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
-      return res.status(200).json(asteroid);
+      return res.status(200).json(asteroid ? presentAsteroid(asteroid) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

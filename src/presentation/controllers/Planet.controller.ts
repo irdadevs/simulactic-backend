@@ -16,6 +16,7 @@ import { ChangePlanetOrbitalDTO } from "../security/planets/ChangePlanetOrbital.
 import { ChangePlanetBiomeDTO } from "../security/planets/ChangePlanetBiome.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentPlanet } from "../presenters/Aggregate.presenter";
 
 export class PlanetController {
   constructor(
@@ -28,7 +29,9 @@ export class PlanetController {
     private readonly findGalaxy: FindGalaxy,
   ) {}
 
-  private isAdmin(req: Request): boolean { return req.auth.userRole === "Admin"; }
+  private isAdmin(req: Request): boolean {
+    return req.auth.userRole === "Admin";
+  }
 
   private async canAccessGalaxy(req: Request, galaxyId: string): Promise<boolean> {
     if (this.isAdmin(req)) return true;
@@ -57,7 +60,10 @@ export class PlanetController {
       const canAccess = await this.canAccessSystem(req, parsed.data.systemId);
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       const result = await this.listPlanetsBySystem.execute(Uuid.create(parsed.data.systemId));
-      return res.status(200).json(result);
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentPlanet(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -70,7 +76,7 @@ export class PlanetController {
       const canAccess = await this.canAccessPlanet(req, parsed.data.id);
       if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       const planet = await this.findPlanet.byId(Uuid.create(parsed.data.id));
-      return res.status(200).json(planet);
+      return res.status(200).json(planet ? presentPlanet(planet) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -85,7 +91,7 @@ export class PlanetController {
         const canAccess = await this.canAccessSystem(req, planet.systemId);
         if (!canAccess) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
-      return res.status(200).json(planet);
+      return res.status(200).json(planet ? presentPlanet(planet) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

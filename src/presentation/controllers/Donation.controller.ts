@@ -11,6 +11,7 @@ import { ListDonationsDTO } from "../security/donations/ListDonations.dto";
 import { CancelDonationDTO } from "../security/donations/CancelDonation.dto";
 import invalidBody from "../../utils/invalidBody";
 import errorHandler from "../../utils/errors/Errors.handler";
+import { presentDonation } from "../presenters/Aggregate.presenter";
 
 export class DonationController {
   constructor(
@@ -97,7 +98,7 @@ export class DonationController {
         return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
 
-      return res.status(200).json(donation);
+      return res.status(200).json(presentDonation(donation));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -111,12 +112,15 @@ export class DonationController {
       const query = this.isAdmin(req)
         ? parsed.data
         : {
-          ...parsed.data,
-          userId: req.auth.userId,
-        };
+            ...parsed.data,
+            userId: req.auth.userId,
+          };
 
       const result = await this.listDonations.execute(query);
-      return res.status(200).json(result);
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentDonation(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

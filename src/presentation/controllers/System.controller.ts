@@ -14,6 +14,7 @@ import { ChangeSystemNameDTO } from "../security/systems/ChangeSystemName.dto";
 import { ChangeSystemPositionDTO } from "../security/systems/ChangeSystemPosition.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentSystem } from "../presenters/Aggregate.presenter";
 
 export class SystemController {
   constructor(
@@ -53,10 +54,11 @@ export class SystemController {
         return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
 
-      const result = await this.listSystemsByGalaxy.execute(
-        Uuid.create(parsed.data.galaxyId),
-      );
-      return res.status(200).json(result);
+      const result = await this.listSystemsByGalaxy.execute(Uuid.create(parsed.data.galaxyId));
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentSystem(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -75,7 +77,7 @@ export class SystemController {
       }
 
       const system = await this.findSystem.byId(Uuid.create(parsed.data.id));
-      return res.status(200).json(system);
+      return res.status(200).json(system ? presentSystem(system) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -96,7 +98,7 @@ export class SystemController {
         }
       }
 
-      return res.status(200).json(system);
+      return res.status(200).json(system ? presentSystem(system) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -117,7 +119,7 @@ export class SystemController {
         }
       }
 
-      return res.status(200).json(system);
+      return res.status(200).json(system ? presentSystem(system) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -139,10 +141,7 @@ export class SystemController {
         return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
 
-      await this.changeSystemName.execute(
-        Uuid.create(parsedParams.data.id),
-        parsedBody.data,
-      );
+      await this.changeSystemName.execute(Uuid.create(parsedParams.data.id), parsedBody.data);
       return res.status(204).send();
     } catch (err: unknown) {
       return errorHandler(err, res);
@@ -165,10 +164,7 @@ export class SystemController {
         return res.status(403).json({ ok: false, error: "FORBIDDEN" });
       }
 
-      await this.changeSystemPosition.execute(
-        Uuid.create(parsedParams.data.id),
-        parsedBody.data,
-      );
+      await this.changeSystemPosition.execute(Uuid.create(parsedParams.data.id), parsedBody.data);
       return res.status(204).send();
     } catch (err: unknown) {
       return errorHandler(err, res);

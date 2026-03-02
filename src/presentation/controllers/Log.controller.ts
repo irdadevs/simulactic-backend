@@ -8,6 +8,7 @@ import { FindLogByIdDTO } from "../security/logs/FindLogById.dto";
 import { ListLogsDTO } from "../security/logs/ListLogs.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentLog } from "../presenters/Aggregate.presenter";
 
 export class LogController {
   constructor(
@@ -22,7 +23,7 @@ export class LogController {
       const parsed = CreateLogDTO.safeParse(req.body);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const created = await this.createLog.execute(parsed.data);
-      return res.status(201).json(created);
+      return res.status(201).json(presentLog(created));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -44,7 +45,7 @@ export class LogController {
       const parsed = FindLogByIdDTO.safeParse(req.params);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const log = await this.findLog.byId(parsed.data.id);
-      return res.status(200).json(log);
+      return res.status(200).json(log ? presentLog(log) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -55,7 +56,10 @@ export class LogController {
       const parsed = ListLogsDTO.safeParse(req.query);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const logs = await this.listLogs.execute(parsed.data);
-      return res.status(200).json(logs);
+      return res.status(200).json({
+        rows: logs.rows.map((row) => presentLog(row)),
+        total: logs.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

@@ -9,6 +9,7 @@ import { ListMetricsDTO } from "../security/metrics/ListMetrics.dto";
 import { MetricsDashboardDTO } from "../security/metrics/MetricsDashboard.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
+import { presentMetric } from "../presenters/Aggregate.presenter";
 
 export class MetricController {
   constructor(
@@ -23,7 +24,7 @@ export class MetricController {
       const parsed = TrackMetricDTO.safeParse(req.body);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const metric = await this.trackMetric.execute(parsed.data);
-      return res.status(201).json(metric);
+      return res.status(201).json(presentMetric(metric));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -34,7 +35,7 @@ export class MetricController {
       const parsed = FindMetricByIdDTO.safeParse(req.params);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const metric = await this.findMetric.byId(parsed.data.id);
-      return res.status(200).json(metric);
+      return res.status(200).json(metric ? presentMetric(metric) : null);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -45,7 +46,10 @@ export class MetricController {
       const parsed = ListMetricsDTO.safeParse(req.query);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const result = await this.listMetrics.execute(parsed.data);
-      return res.status(200).json(result);
+      return res.status(200).json({
+        rows: result.rows.map((row) => presentMetric(row)),
+        total: result.total,
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
