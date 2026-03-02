@@ -14,6 +14,44 @@ const toIso = (value: Date | string | null | undefined): string | null => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
+const SENSITIVE_KEY_PATTERN =
+  /(password|token|secret|authorization|cookie|hash|credential|api[-_]?key|session)/i;
+
+const maskIdentifier = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  if (value.length <= 8) return "***";
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+};
+
+const maskIp = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  if (value.includes(".")) {
+    const parts = value.split(".");
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.***`;
+  }
+  return maskIdentifier(value);
+};
+
+const sanitizeUnknown = (value: unknown): unknown => {
+  if (value == null) return value;
+  if (Array.isArray(value)) return value.map((item) => sanitizeUnknown(item));
+  if (typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        result[key] = "[REDACTED]";
+      } else {
+        result[key] = sanitizeUnknown(inner);
+      }
+    }
+    return result;
+  }
+  if (typeof value === "string" && value.toLowerCase().startsWith("bearer ")) {
+    return "[REDACTED]";
+  }
+  return value;
+};
+
 export const presentGalaxy = (galaxy: Galaxy) => ({
   id: galaxy.id,
   ownerId: galaxy.ownerId,
@@ -92,6 +130,14 @@ export const presentDonation = (donation: Donation) => ({
   canceledAt: toIso(donation.canceledAt),
 });
 
+export const presentDonationAdmin = (donation: Donation) => ({
+  ...presentDonation(donation),
+  provider: donation.provider,
+  providerSessionIdMasked: maskIdentifier(donation.providerSessionId),
+  providerCustomerIdMasked: maskIdentifier(donation.providerCustomerId),
+  providerSubscriptionIdMasked: maskIdentifier(donation.providerSubscriptionId),
+});
+
 export const presentMetric = (metric: Metric) => ({
   id: metric.id,
   metricName: metric.metricName,
@@ -100,6 +146,14 @@ export const presentMetric = (metric: Metric) => ({
   durationMs: metric.durationMs,
   success: metric.success,
   occurredAt: toIso(metric.occurredAt),
+});
+
+export const presentMetricAdmin = (metric: Metric) => ({
+  ...presentMetric(metric),
+  userId: metric.userId,
+  requestId: metric.requestId,
+  tags: sanitizeUnknown(metric.tags),
+  context: sanitizeUnknown(metric.context),
 });
 
 export const presentLog = (log: Log) => ({
@@ -117,4 +171,12 @@ export const presentLog = (log: Log) => ({
   occurredAt: toIso(log.occurredAt),
   resolvedAt: toIso(log.resolvedAt),
   resolvedBy: log.resolvedBy,
+});
+
+export const presentLogAdmin = (log: Log) => ({
+  ...presentLog(log),
+  context: sanitizeUnknown(log.context),
+  ipMasked: maskIp(log.ip),
+  userAgent: log.userAgent,
+  fingerprintMasked: maskIdentifier(log.fingerprint),
 });

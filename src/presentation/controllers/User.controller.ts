@@ -38,6 +38,14 @@ export class UserController {
     private readonly lifecycleService: LifecycleService,
   ) {}
 
+  private isAdmin(req: Request): boolean {
+    return req.auth.userRole === "Admin";
+  }
+
+  private wantsDashboardView(req: Request): boolean {
+    return this.isAdmin(req) && req.query.view === "dashboard";
+  }
+
   private cookieOptions(maxAgeMs: number) {
     const isProd = process.env.NODE_ENV === "production";
     return {
@@ -86,6 +94,27 @@ export class UserController {
     };
   }
 
+  private toAdminDashboardUserFromAggregate(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      isVerified: user.isVerified,
+      isDeleted: user.isDeleted,
+      isArchived: user.isArchived,
+      isSupporter: user.isSupporter,
+      createdAt: user.createdAt.toISOString(),
+      lastActivityAt: user.lastActivityAt.toISOString(),
+      verifiedAt: this.toIsoOrNull(user.verifiedAt),
+      deletedAt: this.toIsoOrNull(user.deletedAt),
+      archivedAt: this.toIsoOrNull(user.archivedAt),
+      supporterFrom: this.toIsoOrNull(user.supporterFrom),
+      verificationCodeActive: Boolean(user.verificationCode),
+      verificationCodeExpiresAt: this.toIsoOrNull(user.verificationCodeExpiresAt),
+    };
+  }
+
   private toPublicUserFromListItem(user: UserListItem) {
     return {
       id: user.id,
@@ -93,6 +122,25 @@ export class UserController {
       username: user.username,
       role: user.role,
       verified: user.verified,
+      isDeleted: user.isDeleted,
+      isArchived: user.isArchived,
+      isSupporter: user.isSupporter,
+      createdAt: user.createdAt.toISOString(),
+      lastActivityAt: user.lastActivityAt.toISOString(),
+      verifiedAt: this.toIsoOrNull(user.verifiedAt),
+      deletedAt: this.toIsoOrNull(user.deletedAt),
+      archivedAt: this.toIsoOrNull(user.archivedAt),
+      supporterFrom: this.toIsoOrNull(user.supporterFrom),
+    };
+  }
+
+  private toAdminDashboardUserFromListItem(user: UserListItem) {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      isVerified: user.verified,
       isDeleted: user.isDeleted,
       isArchived: user.isArchived,
       isSupporter: user.isSupporter,
@@ -296,8 +344,11 @@ export class UserController {
       }
 
       const result = await this.listUsers.execute(parsed.data);
+      const mapUser = this.wantsDashboardView(req)
+        ? (row: UserListItem) => this.toAdminDashboardUserFromListItem(row)
+        : (row: UserListItem) => this.toPublicUserFromListItem(row);
       return res.status(200).json({
-        rows: result.rows.map((row) => this.toPublicUserFromListItem(row)),
+        rows: result.rows.map((row) => mapUser(row)),
         total: result.total,
       });
     } catch (err: unknown) {
@@ -378,6 +429,11 @@ export class UserController {
       }
 
       const user = await this.findUser.byId(Uuid.create(parsed.data.id));
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json({
+          user: this.toAdminDashboardUserFromAggregate(user),
+        });
+      }
       return res.status(200).json({
         user: this.toPublicUserFromAggregate(user),
       });
@@ -389,6 +445,11 @@ export class UserController {
   public me = async (req: Request, res: Response) => {
     try {
       const user = await this.findUser.byId(Uuid.create(req.auth.userId));
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json({
+          user: this.toAdminDashboardUserFromAggregate(user),
+        });
+      }
       return res.status(200).json({
         user: this.toPublicUserFromAggregate(user),
       });
@@ -405,6 +466,11 @@ export class UserController {
       }
 
       const user = await this.findUser.byEmail(Email.create(parsed.data.email));
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json({
+          user: this.toAdminDashboardUserFromAggregate(user),
+        });
+      }
       return res.status(200).json({
         user: this.toPublicUserFromAggregate(user),
       });
@@ -421,6 +487,11 @@ export class UserController {
       }
 
       const user = await this.findUser.byUsername(Username.create(parsed.data.username));
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json({
+          user: this.toAdminDashboardUserFromAggregate(user),
+        });
+      }
       return res.status(200).json({
         user: this.toPublicUserFromAggregate(user),
       });

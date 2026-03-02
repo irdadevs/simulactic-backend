@@ -9,7 +9,7 @@ import { ListMetricsDTO } from "../security/metrics/ListMetrics.dto";
 import { MetricsDashboardDTO } from "../security/metrics/MetricsDashboard.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
-import { presentMetric } from "../presenters/Aggregate.presenter";
+import { presentMetric, presentMetricAdmin } from "../presenters/Aggregate.presenter";
 
 export class MetricController {
   constructor(
@@ -19,11 +19,18 @@ export class MetricController {
     private readonly dashboardMetrics: MetricsDashboardQuery,
   ) {}
 
+  private wantsDashboardView(req: Request): boolean {
+    return req.auth.userRole === "Admin" && req.query.view === "dashboard";
+  }
+
   public track = async (req: Request, res: Response) => {
     try {
       const parsed = TrackMetricDTO.safeParse(req.body);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const metric = await this.trackMetric.execute(parsed.data);
+      if (this.wantsDashboardView(req)) {
+        return res.status(201).json(presentMetricAdmin(metric));
+      }
       return res.status(201).json(presentMetric(metric));
     } catch (err: unknown) {
       return errorHandler(err, res);
@@ -35,7 +42,11 @@ export class MetricController {
       const parsed = FindMetricByIdDTO.safeParse(req.params);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const metric = await this.findMetric.byId(parsed.data.id);
-      return res.status(200).json(metric ? presentMetric(metric) : null);
+      if (!metric) return res.status(200).json(null);
+      if (this.wantsDashboardView(req)) {
+        return res.status(200).json(presentMetricAdmin(metric));
+      }
+      return res.status(200).json(presentMetric(metric));
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
@@ -46,8 +57,9 @@ export class MetricController {
       const parsed = ListMetricsDTO.safeParse(req.query);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const result = await this.listMetrics.execute(parsed.data);
+      const mapMetric = this.wantsDashboardView(req) ? presentMetricAdmin : presentMetric;
       return res.status(200).json({
-        rows: result.rows.map((row) => presentMetric(row)),
+        rows: result.rows.map((row) => mapMetric(row)),
         total: result.total,
       });
     } catch (err: unknown) {
