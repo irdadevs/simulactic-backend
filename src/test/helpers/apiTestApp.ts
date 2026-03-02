@@ -161,6 +161,35 @@ export function buildTestApi(): {
       softDelete: jest.fn(async () => undefined),
       restore: jest.fn(async () => undefined),
     },
+    securityBanService: {
+      isUserBanned: jest.fn(async () => false),
+      isIpBanned: jest.fn(async () => false),
+      normalizeIp: jest.fn((value: string) => value),
+      banUserByAdmin: jest.fn(async (input: Record<string, unknown>) => ({
+        id: "1",
+        userId: input.targetUserId,
+        reason: input.reason ?? "manual",
+        source: "admin",
+        bannedBy: input.actorUserId ?? null,
+        createdAt: new Date(),
+        expiresAt: input.expiresAt ?? null,
+      })),
+      unbanUserByAdmin: jest.fn(async () => 1),
+      banIpByAdmin: jest.fn(async (input: Record<string, unknown>) => ({
+        id: "1",
+        ipAddress: input.ipAddress,
+        reason: input.reason ?? "manual",
+        source: "admin",
+        bannedBy: input.actorUserId ?? null,
+        createdAt: new Date(),
+        expiresAt: input.expiresAt ?? null,
+      })),
+      unbanIpByAdmin: jest.fn(async () => 1),
+      listActiveBans: jest.fn(async () => ({ users: [], ips: [] })),
+      registerSuspiciousSignal: jest.fn(async () => undefined),
+      assertIpNotBanned: jest.fn(async () => undefined),
+      assertUserNotBanned: jest.fn(async () => undefined),
+    },
     createGalaxy: {
       execute: jest.fn(
         async (payload: {
@@ -421,6 +450,7 @@ export function buildTestApi(): {
     mocks.authService as any,
     mocks.platformService as any,
     mocks.lifecycleService as any,
+    mocks.securityBanService as any,
   );
 
   const galaxyController = new GalaxyController(
@@ -505,7 +535,7 @@ export function buildTestApi(): {
 
   const app = Express();
   app.use(Express.json());
-  const auth = new AuthMiddleware(new FakeJwt(), {});
+  const auth = new AuthMiddleware(new FakeJwt(), {}, mocks.securityBanService as any);
   const scope = new ScopeMiddleware();
 
   app.use(

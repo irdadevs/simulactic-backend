@@ -18,6 +18,10 @@ import { RestoreDTO } from "../security/users/Restore.dto";
 import { SignupDTO } from "../security/users/Signup.dto";
 import { SoftDeleteDTO } from "../security/users/SoftDelete.dto";
 import { VerifyDTO } from "../security/users/Verify.dto";
+import { BanUserDTO } from "../security/users/BanUser.dto";
+import { BanIpDTO } from "../security/users/BanIp.dto";
+import { UnbanIpDTO } from "../security/users/UnbanIp.dto";
+import { ListActiveBansDTO } from "../security/users/ListActiveBans.dto";
 import FindUser from "../../app/use-cases/queries/users/FindUser.query";
 import { ListUsers } from "../../app/use-cases/queries/users/ListUsers.query";
 import { UserListItem } from "../../app/interfaces/User.port";
@@ -27,6 +31,7 @@ import { ListUsersDTO } from "../security/users/ListUsers.dto";
 import { Email, User, Username, Uuid } from "../../domain/aggregates/User";
 import { AUTH_COOKIE_NAMES, getCookie } from "../../utils/Cookies";
 import { TOKEN_TIMES_MAP } from "../../utils/TokenTimes.map";
+import { SecurityBanService } from "../../app/app-services/security/SecurityBan.service";
 
 export class UserController {
   constructor(
@@ -36,6 +41,7 @@ export class UserController {
     private readonly authService: AuthService,
     private readonly platformService: PlatformService,
     private readonly lifecycleService: LifecycleService,
+    private readonly securityBan: SecurityBanService,
   ) {}
 
   private isAdmin(req: Request): boolean {
@@ -416,6 +422,135 @@ export class UserController {
 
       await this.lifecycleService.restore(Uuid.create(parsed.data.id));
       return res.status(204).send();
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public banUser = async (req: Request, res: Response) => {
+    try {
+      const parsedParams = FindUserByIdDTO.safeParse(req.params);
+      if (!parsedParams.success) {
+        return invalidBody(res, parsedParams.error);
+      }
+      const parsedBody = BanUserDTO.safeParse(req.body);
+      if (!parsedBody.success) {
+        return invalidBody(res, parsedBody.error);
+      }
+
+      const result = await this.securityBan.banUserByAdmin({
+        targetUserId: parsedParams.data.id,
+        actorUserId: req.auth.userId,
+        reason: parsedBody.data.reason,
+        expiresAt: parsedBody.data.expiresAt ?? null,
+      });
+
+      return res.status(201).json({
+        id: result.id,
+        userId: result.userId,
+        reason: result.reason,
+        source: result.source,
+        bannedBy: result.bannedBy,
+        createdAt: result.createdAt.toISOString(),
+        expiresAt: this.toIsoOrNull(result.expiresAt),
+      });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public unbanUser = async (req: Request, res: Response) => {
+    try {
+      const parsedParams = FindUserByIdDTO.safeParse(req.params);
+      if (!parsedParams.success) {
+        return invalidBody(res, parsedParams.error);
+      }
+
+      await this.securityBan.unbanUserByAdmin({
+        targetUserId: parsedParams.data.id,
+        actorUserId: req.auth.userId,
+      });
+
+      return res.status(204).send();
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public banIp = async (req: Request, res: Response) => {
+    try {
+      const parsed = BanIpDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return invalidBody(res, parsed.error);
+      }
+
+      const result = await this.securityBan.banIpByAdmin({
+        ipAddress: parsed.data.ipAddress,
+        actorUserId: req.auth.userId,
+        reason: parsed.data.reason,
+        expiresAt: parsed.data.expiresAt ?? null,
+      });
+
+      return res.status(201).json({
+        id: result.id,
+        ipAddress: result.ipAddress,
+        reason: result.reason,
+        source: result.source,
+        bannedBy: result.bannedBy,
+        createdAt: result.createdAt.toISOString(),
+        expiresAt: this.toIsoOrNull(result.expiresAt),
+      });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public unbanIp = async (req: Request, res: Response) => {
+    try {
+      const parsed = UnbanIpDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return invalidBody(res, parsed.error);
+      }
+
+      await this.securityBan.unbanIpByAdmin({
+        ipAddress: parsed.data.ipAddress,
+        actorUserId: req.auth.userId,
+      });
+
+      return res.status(204).send();
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public listActiveBans = async (req: Request, res: Response) => {
+    try {
+      const parsed = ListActiveBansDTO.safeParse(req.query);
+      if (!parsed.success) {
+        return invalidBody(res, parsed.error);
+      }
+
+      const result = await this.securityBan.listActiveBans(parsed.data.limit);
+      return res.status(200).json({
+        users: result.users.map((row) => ({
+          id: row.id,
+          userId: row.userId,
+          reason: row.reason,
+          source: row.source,
+          bannedBy: row.bannedBy,
+          createdAt: row.createdAt.toISOString(),
+          expiresAt: this.toIsoOrNull(row.expiresAt),
+        })),
+        ips: result.ips.map((row) => ({
+          id: row.id,
+          ipAddress: row.ipAddress,
+          reason: row.reason,
+          source: row.source,
+          bannedBy: row.bannedBy,
+          createdAt: row.createdAt.toISOString(),
+          expiresAt: this.toIsoOrNull(row.expiresAt),
+        })),
+      });
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

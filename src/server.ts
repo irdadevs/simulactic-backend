@@ -20,6 +20,7 @@ import JwtService from "./infra/repos/Jwt.repository";
 import { AuthMiddleware } from "./presentation/middlewares/Auth.middleware";
 import { ScopeMiddleware } from "./presentation/middlewares/Scope.middleware.ts";
 import { SessionRepo } from "./infra/repos/Session.repository";
+import { SecurityBanRepo } from "./infra/repos/SecurityBan.repository";
 import { LoginUser } from "./app/use-cases/commands/users/LoginUser.command";
 import { HasherRepo } from "./infra/repos/Hasher.repository";
 import { SignupUser } from "./app/use-cases/commands/users/SignupUser.command";
@@ -57,6 +58,7 @@ import { RequestAuditMiddleware } from "./presentation/middlewares/RequestAudit.
 import { MetricController } from "./presentation/controllers/Metric.controller";
 import { DonationController } from "./presentation/controllers/Donation.controller";
 import { PerformanceMetricsMiddleware } from "./presentation/middlewares/PerformanceMetrics.middleware";
+import { SecurityGuardMiddleware } from "./presentation/middlewares/SecurityGuard.middleware";
 import FindUser from "./app/use-cases/queries/users/FindUser.query";
 import { HealthQuery } from "./app/use-cases/queries/Health.query";
 import { MailerRepo } from "./infra/repos/Mailer.repository";
@@ -122,6 +124,7 @@ import { FindDonation } from "./app/use-cases/queries/donations/FindDonation.que
 import { ListDonations } from "./app/use-cases/queries/donations/ListDonations.query";
 import { DbMetricInput } from "./config/db/DbMetrics";
 import { MaintenanceScheduler } from "./infra/jobs/Maintenance.scheduler";
+import { SecurityBanService } from "./app/app-services/security/SecurityBan.service";
 
 // --------------------
 // Server config
@@ -239,6 +242,7 @@ async function start(): Promise<void> {
     const metricRepo = new MetricRepo(postgres);
     const donationRepo = new DonationRepo(postgres);
     const sessionRepo = new SessionRepo(postgres._getPool());
+    const securityBanRepo = new SecurityBanRepo(postgres);
     const hasher = new HasherRepo();
     const mailer = new MailerRepo();
     const jwtService = new JwtService();
@@ -252,6 +256,13 @@ async function start(): Promise<void> {
     const logCache = new LogCacheService(cache);
     const metricCache = new MetricCacheService(cache);
     const donationCache = new DonationCacheService(cache);
+    const securityBanService = new SecurityBanService(
+      securityBanRepo,
+      userRepo,
+      sessionRepo,
+      userCache,
+      cache,
+    );
     const paymentGateway = new PaymentGatewayRepo();
     //! App layer
     // Use-cases
@@ -457,6 +468,7 @@ async function start(): Promise<void> {
       jwtService,
       hasher,
       userRepo,
+      securityBanService,
     );
     const platformService = new PlatformService(
       signupUser,
@@ -477,6 +489,7 @@ async function start(): Promise<void> {
       authService,
       platformService,
       lifecycleService,
+      securityBanService,
     );
     const galaxyController = new GalaxyController(
       createGalaxy,
@@ -548,17 +561,23 @@ async function start(): Promise<void> {
       listDonations,
     );
     // Middlewares
-    const authMiddleware = new AuthMiddleware(jwtService, {
-      issuer: APP_ENV.JWT_ISSUER,
-      audience: APP_ENV.JWT_AUDIENCE,
-    });
+    const authMiddleware = new AuthMiddleware(
+      jwtService,
+      {
+        issuer: APP_ENV.JWT_ISSUER,
+        audience: APP_ENV.JWT_AUDIENCE,
+      },
+      securityBanService,
+    );
     const scopeMiddleware = new ScopeMiddleware();
-    const requestAuditMiddleware = new RequestAuditMiddleware(createLog);
+    const requestAuditMiddleware = new RequestAuditMiddleware(createLog, securityBanService);
     const performanceMetricsMiddleware = new PerformanceMetricsMiddleware(trackMetric);
+    const securityGuardMiddleware = new SecurityGuardMiddleware(securityBanService);
 
     app.use(requestAuditMiddleware.bindRequestId());
     app.use(performanceMetricsMiddleware.captureHttpDuration());
     app.use(requestAuditMiddleware.logResponse());
+    app.use(securityGuardMiddleware.blockBannedIp());
     // Routers
     app.use(
       buildApiRouter({

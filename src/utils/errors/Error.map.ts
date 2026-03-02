@@ -76,6 +76,21 @@ export const ErrorMap = {
     httpCode: 400,
     public: true,
   },
+  USER_BANNED: {
+    code: "AUTH.USER_BANNED",
+    httpCode: 403,
+    public: true,
+  },
+  IP_BANNED: {
+    code: "AUTH.IP_BANNED",
+    httpCode: 403,
+    public: true,
+  },
+  BAN_ALREADY_ACTIVE: {
+    code: "AUTH.BAN_ALREADY_ACTIVE",
+    httpCode: 409,
+    public: true,
+  },
   SESSION_EXPIRED: {
     code: "AUTH.SESSION_EXPIRED",
     httpCode: 400,
@@ -281,55 +296,42 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorMap.OUT_OF_RANGE.code]:
     "Value out of range. Field name: ${field}, min: ${min}, max: ${max}.",
   [ErrorMap.INVALID_FIELD.code]: "Invalid field. Field name: ${field}.",
-  [ErrorMap.NOT_FOUND.code]:
-    "Source not found. Source type: ${sourceType}, source id: ${id}.",
-  [ErrorMap.DEPENDENCY_NOT_FOUND.code]:
-    "Dependency not found. Dependency: {$dep}.",
-  [ErrorMap.JOB_ALREADY_SCHEDULED.code]:
-    "Job already scheduled. Name: {$name}.",
+  [ErrorMap.NOT_FOUND.code]: "Source not found. Source type: ${sourceType}, source id: ${id}.",
+  [ErrorMap.DEPENDENCY_NOT_FOUND.code]: "Dependency not found. Dependency: {$dep}.",
+  [ErrorMap.JOB_ALREADY_SCHEDULED.code]: "Job already scheduled. Name: {$name}.",
   [ErrorMap.INVALID_CRON_EXPR.code]: "Invalid cron expression. Expr: {$expr}.",
-  [ErrorMap.DATABASE_CONNECTION.code]:
-    "Database connection max attempts reached.",
+  [ErrorMap.DATABASE_CONNECTION.code]: "Database connection max attempts reached.",
   [ErrorMap.DB_POOL_NOT_AVAILABLE.code]:
     "Database Pool not available for Unit Of Work. Null returned.",
-  [ErrorMap.TRANSACTION_FAILED.code]:
-    "Atomic database transaction failed. Cause: \n${cause}",
+  [ErrorMap.TRANSACTION_FAILED.code]: "Atomic database transaction failed. Cause: \n${cause}",
   [ErrorMap.ORDER_MAP_EMPTY.code]: "Order map need at least one entry.",
   [ErrorMap.INVALID_SECRET.code]: "Invalid JWT secret.",
   [ErrorMap.INVALID_CREDENTIALS.code]: "Invalid login credentials.",
   [ErrorMap.INVALID_REFRESH.code]: "Invalid session refresh.",
+  [ErrorMap.USER_BANNED.code]: "User is banned. User id: ${userId}.",
+  [ErrorMap.IP_BANNED.code]: "IP is banned. IP: ${ipAddress}.",
+  [ErrorMap.BAN_ALREADY_ACTIVE.code]: "Ban already active. Target: ${target}, id: ${id}.",
   [ErrorMap.SESSION_INVALID.code]: "Invalid session.",
-  [ErrorMap.EMAIL_NOT_VERIFIED.code]:
-    "Email is not verified. Complete verification first.",
+  [ErrorMap.EMAIL_NOT_VERIFIED.code]: "Email is not verified. Complete verification first.",
   [ErrorMap.INVALID_VERIFICATION_CODE.code]: "Invalid verification code.",
-  [ErrorMap.VERIFICATION_CODE_EXPIRED.code]:
-    "Verification code expired. Request a new code.",
+  [ErrorMap.VERIFICATION_CODE_EXPIRED.code]: "Verification code expired. Request a new code.",
   [ErrorMap.SESSION_EXPIRED.code]: "Expired session.",
   [ErrorMap.REFRESH_REUSED.code]: "Session refresh token reused.",
-  [ErrorMap.EMAIL_EXIST_SIGNUP.code]:
-    "Email already exist. Email: ${newEmail}.",
+  [ErrorMap.EMAIL_EXIST_SIGNUP.code]: "Email already exist. Email: ${newEmail}.",
   [ErrorMap.EMAIL_EXIST_CHANGE.code]: "Email already exist. Email: ${email}.",
-  [ErrorMap.USERNAME_EXIST_SIGNUP.code]:
-    "Username already exist. Username: ${newUsername}.",
-  [ErrorMap.USERNAME_EXIST_CHANGE.code]:
-    "Username already exist. Username: ${username}.",
-  [ErrorMap.SOFT_DELETE_FAILED.code]:
-    "User soft delete failled. Id: ${id}, Cause: \n${cause}",
-  [ErrorMap.RESTORE_FAILED.code]:
-    "User soft delete failled. Id: ${id}, Cause: \n${cause}",
+  [ErrorMap.USERNAME_EXIST_SIGNUP.code]: "Username already exist. Username: ${newUsername}.",
+  [ErrorMap.USERNAME_EXIST_CHANGE.code]: "Username already exist. Username: ${username}.",
+  [ErrorMap.SOFT_DELETE_FAILED.code]: "User soft delete failled. Id: ${id}, Cause: \n${cause}",
+  [ErrorMap.RESTORE_FAILED.code]: "User soft delete failled. Id: ${id}, Cause: \n${cause}",
   [ErrorMap.INVALID_USER_ID.code]: "Invalid user UUID. Id: ${id}.",
   [ErrorMap.INVALID_USER_EMAIL.code]: "Invalid user email. Email: ${email}.",
-  [ErrorMap.INVALID_USER_PASSWORD.code]:
-    "Invalid user password hash. Hash: ${password}.",
-  [ErrorMap.INVALID_USER_USERNAME.code]:
-    "Invalid username. Username: ${username}.",
+  [ErrorMap.INVALID_USER_PASSWORD.code]: "Invalid user password hash. Hash: ${password}.",
+  [ErrorMap.INVALID_USER_USERNAME.code]: "Invalid username. Username: ${username}.",
   [ErrorMap.INVALID_USER_ROLE.code]: "Invalid user role. Role: ${role}.",
   [ErrorMap.INVALID_GALAXY_NAME.code]: "Invalid galaxy name. Name: ${name}.",
-  [ErrorMap.INVALID_GALAXY_SHAPE.code]:
-    "Invalid galaxy shape. Shape: ${shape}.",
+  [ErrorMap.INVALID_GALAXY_SHAPE.code]: "Invalid galaxy shape. Shape: ${shape}.",
   [ErrorMap.INVALID_SYSTEM_NAME.code]: "Invalid system name. Name: ${name}.",
-  [ErrorMap.INVALID_SYSTEM_POSITION.code]:
-    "Invalid system position. Position: ${position}.",
+  [ErrorMap.INVALID_SYSTEM_POSITION.code]: "Invalid system position. Position: ${position}.",
   [ErrorMap.INVALID_STAR_TYPE.code]: "Invalid star type. Type: ${type}.",
   [ErrorMap.INVALID_STAR_CLASS.code]: "Invalid star class. Class: ${class}.",
   [ErrorMap.INVALID_STAR_COLOR.code]: "Invalid star color. Color: ${color}.",
@@ -337,27 +339,18 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorMap.INVALID_PLANET_NAME.code]: "Invalid planet name. Name: ${name}.",
   [ErrorMap.INVALID_PLANET_TYPE.code]: "Invalid planet type. Type: ${type}.",
   [ErrorMap.INVALID_PLANET_SIZE.code]: "Invalid planet size. Size: ${size}.",
-  [ErrorMap.INVALID_PLANET_BIOME.code]:
-    "Invalid planet biome. Biome: ${biome}.",
-  [ErrorMap.INVALID_PLANET_ORBITAL.code]:
-    "Invalid planet orbital. Orbital: ${orbital}.",
-  [ErrorMap.INVALID_PLANET_VALUE.code]:
-    "Invalid planet value. Field: ${field}.",
-  [ErrorMap.INVALID_ASTEROID_TYPE.code]:
-    "Invalid asteroid type. Type: ${type}.",
-  [ErrorMap.INVALID_ASTEROID_NAME.code]:
-    "Invalid asteroid name. Name: ${name}.",
-  [ErrorMap.INVALID_ASTEROID_SIZE.code]:
-    "Invalid asteroid size. Size: ${size}.",
-  [ErrorMap.INVALID_ASTEROID_ORBITAL.code]:
-    "Invalid asteroid orbital. Orbital: ${orbital}.",
+  [ErrorMap.INVALID_PLANET_BIOME.code]: "Invalid planet biome. Biome: ${biome}.",
+  [ErrorMap.INVALID_PLANET_ORBITAL.code]: "Invalid planet orbital. Orbital: ${orbital}.",
+  [ErrorMap.INVALID_PLANET_VALUE.code]: "Invalid planet value. Field: ${field}.",
+  [ErrorMap.INVALID_ASTEROID_TYPE.code]: "Invalid asteroid type. Type: ${type}.",
+  [ErrorMap.INVALID_ASTEROID_NAME.code]: "Invalid asteroid name. Name: ${name}.",
+  [ErrorMap.INVALID_ASTEROID_SIZE.code]: "Invalid asteroid size. Size: ${size}.",
+  [ErrorMap.INVALID_ASTEROID_ORBITAL.code]: "Invalid asteroid orbital. Orbital: ${orbital}.",
   [ErrorMap.INVALID_MOON_NAME.code]: "Invalid moon name. Name: ${name}.",
   [ErrorMap.INVALID_MOON_SIZE.code]: "Invalid moon size. Size: ${size}.",
-  [ErrorMap.INVALID_MOON_ORBITAL.code]:
-    "Invalid moon orbital. Orbital: ${orbital}.",
+  [ErrorMap.INVALID_MOON_ORBITAL.code]: "Invalid moon orbital. Orbital: ${orbital}.",
   [ErrorMap.INVALID_MOON_VALUE.code]: "Invalid moon value. Field: ${field}.",
-  [ErrorMap.GALAXY_NAME_ALREADY_EXIST.code]:
-    "Galaxy name already exist. Name: ${name}.",
+  [ErrorMap.GALAXY_NAME_ALREADY_EXIST.code]: "Galaxy name already exist. Name: ${name}.",
 };
 
 export const ErrorFactory = createErrorFactory(ErrorMap, ErrorMessages);
