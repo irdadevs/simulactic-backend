@@ -9,27 +9,18 @@ import { ErrorFactory } from "../../../utils/errors/Error.map";
 
 const ADMIN_EMAIL = "admin@galactic.dev";
 const ADMIN_PASSWORD = "Galactic-dev";
+const USERNAME = "galactic_username";
 
 function logInfo(message: string): void {
-  console.log(
-    `${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.infoColor(message)}`,
-  );
+  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.infoColor(message)}`);
 }
 
 function logSuccess(message: string): void {
-  console.log(
-    `${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(
-      message,
-    )}`,
-  );
+  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(message)}`);
 }
 
 function logWarn(message: string): void {
-  console.log(
-    `${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(
-      message,
-    )}`,
-  );
+  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(message)}`);
 }
 
 async function main() {
@@ -63,17 +54,18 @@ async function main() {
 
     const userResult = await uow.db.query<{ id: string }>(
       `
-      INSERT INTO auth.users (email, hashed_password, is_verified, verified_at)
-      VALUES ($1, $2, true, now_utc())
+      INSERT INTO auth.users (email, hashed_password, username, is_verified, verified_at)
+      VALUES ($1, $2, $3, true, now_utc())
       ON CONFLICT (email)
       DO UPDATE SET
         hashed_password = EXCLUDED.hashed_password,
         is_verified = true,
+        username = EXCLUDED.username,
         verified_at = COALESCE(auth.users.verified_at, now_utc()),
         updated_at = now_utc()
       RETURNING id
       `,
-      [ADMIN_EMAIL, hashedPassword],
+      [ADMIN_EMAIL, hashedPassword, USERNAME],
     );
 
     const userId = userResult.rows[0]?.id;
