@@ -17,6 +17,9 @@ export type PgConfig = {
   ssl?: boolean | { rejectUnauthorized?: boolean };
   max?: number; // pool size
   idleTimeoutMillis?: number;
+  connectionTimeoutMillis?: number;
+  statement_timeout?: number;
+  query_timeout?: number;
 };
 
 export interface Queryable {

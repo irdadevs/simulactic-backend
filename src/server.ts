@@ -165,6 +165,26 @@ let uowFactory: PgUnitOfWorkFactory;
 let cache: RedisRepo;
 let maintenanceScheduler: MaintenanceScheduler | undefined;
 let httpServer: Server | undefined;
+const READINESS_TIMEOUT_MS = 3000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label}_timeout_${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 app.get("/healthz", (_req, res) => {
   return res.status(200).json({
@@ -184,8 +204,10 @@ app.get("/readyz", async (_req, res) => {
   }
 
   try {
-    await postgres.ping();
-    await cache.ping();
+    await Promise.all([
+      withTimeout(postgres.ping(), READINESS_TIMEOUT_MS, "db_ping"),
+      withTimeout(cache.ping(), READINESS_TIMEOUT_MS, "redis_ping"),
+    ]);
     return res.status(200).json({
       ok: true,
       dependencies: { db: "up", redis: "up" },
@@ -214,6 +236,9 @@ async function start(): Promise<void> {
         ssl: APP_ENV.PGSSL ? { rejectUnauthorized: false } : false,
         max: APP_ENV.PGMAX,
         idleTimeoutMillis: APP_ENV.PGIDLE_TIMEOUT_MS,
+        connectionTimeoutMillis: APP_ENV.PGCONNECTION_TIMEOUT_MS,
+        statement_timeout: APP_ENV.PGSTATEMENT_TIMEOUT_MS,
+        query_timeout: APP_ENV.PGQUERY_TIMEOUT_MS,
       },
       console,
     );
