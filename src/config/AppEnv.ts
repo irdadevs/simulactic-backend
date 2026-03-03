@@ -16,6 +16,9 @@ const AppEnvSchema = z
       .transform((value) => value === "true"),
     PGMAX: z.coerce.number().int().min(1).max(100).default(10),
     PGIDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(10000),
+    PGCONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(5000),
+    PGSTATEMENT_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(10000),
+    PGQUERY_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(10000),
     JWT_ISSUER: z.string().min(1),
     JWT_AUDIENCE: z.string().min(1),
   })
@@ -42,6 +45,9 @@ export type AppEnv = {
   PGSSL: boolean;
   PGMAX: number;
   PGIDLE_TIMEOUT_MS: number;
+  PGCONNECTION_TIMEOUT_MS: number;
+  PGSTATEMENT_TIMEOUT_MS: number;
+  PGQUERY_TIMEOUT_MS: number;
   JWT_ISSUER: string;
   JWT_AUDIENCE: string;
 };
@@ -73,6 +79,9 @@ export function loadAppEnv(env = process.env): AppEnv {
     PGSSL: value.PGSSL,
     PGMAX: value.PGMAX,
     PGIDLE_TIMEOUT_MS: value.PGIDLE_TIMEOUT_MS,
+    PGCONNECTION_TIMEOUT_MS: value.PGCONNECTION_TIMEOUT_MS,
+    PGSTATEMENT_TIMEOUT_MS: value.PGSTATEMENT_TIMEOUT_MS,
+    PGQUERY_TIMEOUT_MS: value.PGQUERY_TIMEOUT_MS,
     JWT_ISSUER: value.JWT_ISSUER,
     JWT_AUDIENCE: value.JWT_AUDIENCE,
     CORS_ORIGINS: parseCorsOrigins(value.CORS_ORIGIN),

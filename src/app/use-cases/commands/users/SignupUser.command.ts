@@ -17,18 +17,14 @@ export class SignupUser {
   ) {}
 
   async execute(dto: SignupDTO) {
-    const existingByEmail = await this.userRepo.findByEmail(
-      Email.create(dto.email),
-    );
+    const existingByEmail = await this.userRepo.findByEmail(Email.create(dto.email));
     if (existingByEmail) {
       throw ErrorFactory.presentation("USERS.EMAIL_EXIST_SIGNUP", {
         email: dto.email,
       });
     }
 
-    const existingByUsername = await this.userRepo.findByUsername(
-      Username.create(dto.username),
-    );
+    const existingByUsername = await this.userRepo.findByUsername(Username.create(dto.username));
     if (existingByUsername) {
       throw ErrorFactory.presentation("USERS.USERNAME_EXIST_SIGNUP", {
         username: dto.username,
@@ -55,11 +51,11 @@ export class SignupUser {
     await this.userCache.setUser(user);
     await this.userCache.invalidateList();
 
-    await this.mailer.send(
-      Email.create(dto.email),
-      "Galactic API - Verification code",
-      code,
-    );
+    try {
+      await this.mailer.send(Email.create(dto.email), "Galactic API - Verification code", code);
+    } catch (_error) {
+      // Keep signup path available even if SMTP is unavailable.
+    }
 
     return user;
   }
