@@ -85,40 +85,45 @@ export class PgPoolQueryable implements Queryable {
   ): Promise<QueryResult<T>> {
     const startedAt = Date.now();
     const operation = inferSqlOperation(sql);
+    const shouldTrackMetric = shouldTrackDbMetric(sql);
     try {
       const res = await this.pool.query<T>(sql as any, params as any);
 
       const rows = Array.isArray(res.rows) ? (res.rows as T[]) : [];
-      void this.metricTracker
-        ?.track({
-          metricName: "db.query.duration",
-          source: "PgPoolQueryable",
-          durationMs: Date.now() - startedAt,
-          success: true,
-          tags: { operation },
-          context: {
-            rowCount: typeof res.rowCount === "number" ? res.rowCount : rows.length,
-          },
-        })
-        .catch(() => {});
+      if (shouldTrackMetric) {
+        void this.metricTracker
+          ?.track({
+            metricName: "db.query.duration",
+            source: "PgPoolQueryable",
+            durationMs: Date.now() - startedAt,
+            success: true,
+            tags: { operation },
+            context: {
+              rowCount: typeof res.rowCount === "number" ? res.rowCount : rows.length,
+            },
+          })
+          .catch(() => {});
+      }
 
       return {
         rows,
         rowCount: typeof res.rowCount === "number" ? res.rowCount : rows.length,
       };
     } catch (error) {
-      void this.metricTracker
-        ?.track({
-          metricName: "db.query.duration",
-          source: "PgPoolQueryable",
-          durationMs: Date.now() - startedAt,
-          success: false,
-          tags: { operation },
-          context: {
-            error: error instanceof Error ? error.message : String(error),
-          },
-        })
-        .catch(() => {});
+      if (shouldTrackMetric) {
+        void this.metricTracker
+          ?.track({
+            metricName: "db.query.duration",
+            source: "PgPoolQueryable",
+            durationMs: Date.now() - startedAt,
+            success: false,
+            tags: { operation },
+            context: {
+              error: error instanceof Error ? error.message : String(error),
+            },
+          })
+          .catch(() => {});
+      }
       throw error;
     }
   }
@@ -150,4 +155,11 @@ function inferSqlOperation(sql: string): string {
   if (!normalized) return "UNKNOWN";
   const firstWord = normalized.split(/\s+/)[0];
   return firstWord || "UNKNOWN";
+}
+
+function shouldTrackDbMetric(sql: string): boolean {
+  const normalized = sql.toLowerCase();
+  // Avoid recursive metric writes when metric tracking itself persists DB metrics.
+  if (normalized.includes("metrics.performance_metrics")) return false;
+  return true;
 }

@@ -24,13 +24,33 @@ export class AuthService {
     private readonly securityBan: SecurityBanService,
   ) {}
 
-  async login(dto: LoginDTO, meta?: { userAgent?: string; ip?: string }) {
-    if (meta?.ip) {
-      await this.securityBan.assertIpNotBanned(meta.ip);
+  private async safeAssertIpNotBanned(ip?: string): Promise<void> {
+    if (!ip) return;
+    try {
+      await this.securityBan.assertIpNotBanned(ip);
+    } catch (error) {
+      // Keep auth path available if security-ban dependency is temporarily degraded.
+      if (error instanceof Error && error.message.includes("security.ip_bans")) return;
+      if (error instanceof Error && error.message.includes("timeout")) return;
+      throw error;
     }
+  }
+
+  private async safeAssertUserNotBanned(userId: string): Promise<void> {
+    try {
+      await this.securityBan.assertUserNotBanned(userId);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("security.user_bans")) return;
+      if (error instanceof Error && error.message.includes("timeout")) return;
+      throw error;
+    }
+  }
+
+  async login(dto: LoginDTO, meta?: { userAgent?: string; ip?: string }) {
+    await this.safeAssertIpNotBanned(meta?.ip);
 
     const user = await this.loginUser.execute(dto);
-    await this.securityBan.assertUserNotBanned(user.id);
+    await this.safeAssertUserNotBanned(user.id);
 
     const sessionId = randomUUID();
 

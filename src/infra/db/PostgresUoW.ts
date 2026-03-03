@@ -24,42 +24,47 @@ class PgClientQueryable implements Queryable {
   ): Promise<QueryResult<T>> {
     const startedAt = Date.now();
     const operation = inferSqlOperation(sql);
+    const shouldTrackMetric = shouldTrackDbMetric(sql);
     try {
       const res = await this.client.query<T>(sql, params);
 
       const rows = Array.isArray(res.rows) ? res.rows : [];
-      void this.metricTracker
-        ?.track({
-          metricName: "db.query.duration",
-          source: "PgUnitOfWork",
-          durationMs: Date.now() - startedAt,
-          success: true,
-          tags: { operation, inTransaction: true },
-          context: {
-            txId: this.txId,
-            rowCount: typeof res.rowCount === "number" ? res.rowCount : rows.length,
-          },
-        })
-        .catch(() => {});
+      if (shouldTrackMetric) {
+        void this.metricTracker
+          ?.track({
+            metricName: "db.query.duration",
+            source: "PgUnitOfWork",
+            durationMs: Date.now() - startedAt,
+            success: true,
+            tags: { operation, inTransaction: true },
+            context: {
+              txId: this.txId,
+              rowCount: typeof res.rowCount === "number" ? res.rowCount : rows.length,
+            },
+          })
+          .catch(() => {});
+      }
 
       return {
         rows,
         rowCount: typeof res.rowCount === "number" ? res.rowCount : rows.length,
       };
     } catch (error) {
-      void this.metricTracker
-        ?.track({
-          metricName: "db.query.duration",
-          source: "PgUnitOfWork",
-          durationMs: Date.now() - startedAt,
-          success: false,
-          tags: { operation, inTransaction: true },
-          context: {
-            txId: this.txId,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        })
-        .catch(() => {});
+      if (shouldTrackMetric) {
+        void this.metricTracker
+          ?.track({
+            metricName: "db.query.duration",
+            source: "PgUnitOfWork",
+            durationMs: Date.now() - startedAt,
+            success: false,
+            tags: { operation, inTransaction: true },
+            context: {
+              txId: this.txId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          })
+          .catch(() => {});
+      }
       throw error;
     }
   }
@@ -176,4 +181,10 @@ function inferSqlOperation(sql: string): string {
   if (!normalized) return "UNKNOWN";
   const firstWord = normalized.split(/\s+/)[0];
   return firstWord || "UNKNOWN";
+}
+
+function shouldTrackDbMetric(sql: string): boolean {
+  const normalized = sql.toLowerCase();
+  if (normalized.includes("metrics.performance_metrics")) return false;
+  return true;
 }
