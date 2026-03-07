@@ -441,6 +441,25 @@ export function buildTestApi(): {
     listDonations: {
       execute: jest.fn(async () => ({ rows: [], total: 0 })),
     },
+    getSupporterProgress: {
+      execute: jest.fn(async () => ({
+        totalDonatedEurMinor: 919,
+        monthlySupportingMonths: 1,
+        unlockedBadges: ["amount_l1", "months_l1"],
+        amountBranch: {
+          level: 1,
+          maxLevel: 6,
+          nextLevel: 2,
+          nextThreshold: 2000,
+        },
+        monthlyBranch: {
+          level: 1,
+          maxLevel: 6,
+          nextLevel: 2,
+          nextThreshold: 3,
+        },
+      })),
+    },
   } as const;
 
   const userController = new UserController(
@@ -451,6 +470,7 @@ export function buildTestApi(): {
     mocks.platformService as any,
     mocks.lifecycleService as any,
     mocks.securityBanService as any,
+    mocks.getSupporterProgress as any,
   );
 
   const galaxyController = new GalaxyController(

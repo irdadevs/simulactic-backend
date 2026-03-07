@@ -107,6 +107,7 @@ import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
 import { FindDonation } from "../../app/use-cases/queries/donations/FindDonation.query";
 import { ListDonations } from "../../app/use-cases/queries/donations/ListDonations.query";
+import { GetSupporterProgress } from "../../app/use-cases/queries/donations/GetSupporterProgress.query";
 import { User } from "../../domain/aggregates/User";
 import { RealInfraContext } from "./realInfra";
 import {
@@ -235,6 +236,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const cancelDonation = new CancelDonation(donationRepo, paymentGateway, donationCache);
   const findDonation = new FindDonation(donationRepo, donationCache);
   const listDonations = new ListDonations(donationRepo, donationCache);
+  const getSupporterProgress = new GetSupporterProgress(donationRepo);
 
   const createGalaxy = new CreateGalaxy(
     ctx.uowFactory,
@@ -403,6 +405,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     platformService,
     lifecycleService,
     securityBanService,
+    getSupporterProgress,
   );
   const galaxyController = new GalaxyController(
     createGalaxy,

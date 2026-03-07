@@ -10,10 +10,7 @@ import { CreateDonationCheckout } from "../../app/use-cases/commands/donations/C
 import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
 
-const assertErrorCode = async (
-  fn: () => Promise<unknown>,
-  code: string,
-): Promise<void> => {
+const assertErrorCode = async (fn: () => Promise<unknown>, code: string): Promise<void> => {
   let thrown: unknown;
   try {
     await fn();
@@ -78,17 +75,20 @@ describe("Donation commands", () => {
   it("creates checkout and stores pending donation", async () => {
     const saveSpy = jest.fn<Promise<Donation>, [Donation]>(async (donation) => donation);
     const invalidateSpy = jest.fn<Promise<void>, [Donation]>(async () => undefined);
-    const createSessionSpy = jest.fn<Promise<PaymentSessionResult>, [
-      {
-        donationType: "one_time" | "monthly";
-        amountMinor: number;
-        currency: string;
-        successUrl: string;
-        cancelUrl: string;
-        customerEmail?: string;
-        metadata?: Record<string, string>;
-      },
-    ]>(async () => ({
+    const createSessionSpy = jest.fn<
+      Promise<PaymentSessionResult>,
+      [
+        {
+          donationType: "one_time" | "monthly";
+          amountMinor: number;
+          currency: string;
+          successUrl: string;
+          cancelUrl: string;
+          customerEmail?: string;
+          metadata?: Record<string, string>;
+        },
+      ]
+    >(async () => ({
       sessionId: "cs_test_1",
       url: "https://checkout.stripe.com/pay/cs_test_1",
     }));
@@ -97,7 +97,17 @@ describe("Donation commands", () => {
       save: saveSpy,
       findById: async (_id: string): Promise<Donation | null> => null,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
-      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({ rows: [], total: 0 }),
+      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
+        rows: [],
+        total: 0,
+      }),
+      getSupporterProgress: async (_userId: string) => ({
+        totalDonatedEurMinor: 0,
+        monthlySupportingMonths: 0,
+        unlockedBadges: [],
+        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
+        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
+      }),
     };
 
     const gateway: IPaymentGateway = {
@@ -153,7 +163,17 @@ describe("Donation commands", () => {
       save: saveSpy,
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => donation,
-      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({ rows: [], total: 0 }),
+      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
+        rows: [],
+        total: 0,
+      }),
+      getSupporterProgress: async (_userId: string) => ({
+        totalDonatedEurMinor: 0,
+        monthlySupportingMonths: 0,
+        unlockedBadges: [],
+        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
+        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
+      }),
     };
 
     const gateway: IPaymentGateway = {
@@ -224,7 +244,17 @@ describe("Donation commands", () => {
       save: saveSpy,
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
-      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({ rows: [], total: 0 }),
+      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
+        rows: [],
+        total: 0,
+      }),
+      getSupporterProgress: async (_userId: string) => ({
+        totalDonatedEurMinor: 0,
+        monthlySupportingMonths: 0,
+        unlockedBadges: [],
+        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
+        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
+      }),
     };
 
     const gateway: IPaymentGateway = {
@@ -271,7 +301,17 @@ describe("Donation commands", () => {
       save: async (updated: Donation): Promise<Donation> => updated,
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
-      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({ rows: [], total: 0 }),
+      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
+        rows: [],
+        total: 0,
+      }),
+      getSupporterProgress: async (_userId: string) => ({
+        totalDonatedEurMinor: 0,
+        monthlySupportingMonths: 0,
+        unlockedBadges: [],
+        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
+        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
+      }),
     };
 
     const gateway: IPaymentGateway = {
@@ -296,9 +336,6 @@ describe("Donation commands", () => {
     } as unknown as DonationCacheService;
 
     const command = new CancelDonation(repo, gateway, cache);
-    await assertErrorCode(
-      async () => command.execute(donation.id),
-      "PRESENTATION.INVALID_FIELD",
-    );
+    await assertErrorCode(async () => command.execute(donation.id), "PRESENTATION.INVALID_FIELD");
   });
 });

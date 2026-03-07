@@ -54,6 +54,22 @@ Some admin endpoints support `?view=dashboard` to return extended, sanitized pay
 - Donations: exposes provider type and masked provider identifiers.
 - Logs and metrics: includes additional admin context with sensitive values redacted/masked.
 
+### Supporter badges and progress
+
+Supporter progression is computed from persisted donations and exposed as a compact client payload:
+
+- `totalDonatedEurMinor`: total donations converted to EUR minor units.
+- `monthlySupportingMonths`: total elapsed monthly support time.
+- `unlockedBadges`: badge ids (`amount_l*`, `months_l*`) for client-side rehydration.
+- `amountBranch` / `monthlyBranch`: current level and next threshold.
+
+EUR normalization now uses persisted daily FX rates (`billing.fx_rates_daily`) refreshed by maintenance jobs from ECB.
+
+Badge branches:
+
+- Amount (EUR): `5, 20, 50, 100, 250, 500` EUR.
+- Monthly support: `1, 3, 6, 12, 24, 36` months.
+
 ## Security Ban System
 
 Security bans are implemented at both user and IP level.
@@ -125,6 +141,7 @@ All endpoints below are prefixed by `/api/v1`.
 - `POST /users/verify` (public)
 - `POST /users/verify/resend` (public)
 - `GET /users/me` (Auth)
+- `GET /users/me/supporter-progress` (Auth)
 - `PATCH /users/me/email` (Auth)
 - `PATCH /users/me/password` (Auth)
 - `PATCH /users/me/username` (Auth)
@@ -255,6 +272,7 @@ All endpoints below are prefixed by `/api/v1`.
 - `006_donations.sql`
 - `007_maintenance.sql`
 - `008_security_bans.sql` (security schema, user/IP bans)
+- `009_fx_rates.sql` (daily FX rates for EUR normalization)
 
 ## Local Development
 
@@ -301,3 +319,6 @@ npm run prepare
 - SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`
 - Maintenance: `MAINTENANCE_*`
+  - FX refresh:
+    - `MAINTENANCE_FX_RATES_REFRESH_INTERVAL_MIN`
+    - `MAINTENANCE_FX_RATES_SOURCE_URL`

@@ -16,6 +16,10 @@ class FakeDb {
       return { rows: [{ rows_upserted: 3 }], rowCount: 1 };
     }
 
+    if (sql.includes("billing.fx_rates_daily")) {
+      return { rows: [], rowCount: 1 };
+    }
+
     return { rows: [], rowCount: 0 };
   });
 
@@ -34,6 +38,8 @@ describe("MaintenanceScheduler", () => {
     housekeepingIntervalMs: 60_000,
     usersArchiveIntervalMs: 60_000,
     partitionPlanIntervalMs: 60_000,
+    fxRatesRefreshIntervalMs: 60_000,
+    fxRatesSourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml",
   };
 
   it("runs housekeeping SQL function", async () => {

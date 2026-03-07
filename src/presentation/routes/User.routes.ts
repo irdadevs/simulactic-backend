@@ -55,6 +55,12 @@ export function UserRoutes(
       handler: ctrl.me,
     },
     {
+      method: "get",
+      path: "/me/supporter-progress",
+      before: [auth.requireAuth()],
+      handler: ctrl.mySupporterProgress,
+    },
+    {
       method: "patch",
       path: "/me/password",
       before: [auth.requireAuth()],
