@@ -1,4 +1,9 @@
-import { IDonation, ListDonationsQuery } from "../../app/interfaces/Donation.port";
+import {
+  IDonation,
+  ListDonationsQuery,
+  SupporterBadgeBranchProgress,
+  SupporterProgress,
+} from "../../app/interfaces/Donation.port";
 import { Queryable, QueryResultRow } from "../../config/db/Queryable";
 import { Donation } from "../../domain/aggregates/Donation";
 import { paginateFrom, ParamBag } from "../../utils/Pagination";
@@ -6,6 +11,21 @@ import { ErrorFactory } from "../../utils/errors/Error.map";
 
 export default class DonationRepo implements IDonation {
   constructor(private readonly db: Queryable) {}
+
+  private static readonly EUR_MINOR_UNITS = 100;
+  private static readonly CURRENCY_TO_EUR_RATES: Record<string, number> = {
+    EUR: 1,
+    USD: 0.92,
+    GBP: 1.17,
+    CHF: 1.04,
+    CAD: 0.68,
+    AUD: 0.61,
+    JPY: 0.0062,
+  };
+  private static readonly AMOUNT_BADGE_THRESHOLDS_EUR_MINOR = [
+    500, 2_000, 5_000, 10_000, 25_000, 50_000,
+  ];
+  private static readonly MONTHLY_BADGE_THRESHOLDS_MONTHS = [1, 3, 6, 12, 24, 36];
 
   private mapRow(row: QueryResultRow): Donation {
     return Donation.rehydrate({
@@ -186,6 +206,125 @@ export default class DonationRepo implements IDonation {
     return {
       rows: page.rows.map((row) => this.mapRow(row)),
       total: page.total,
+    };
+  }
+
+  private amountToEurMinor(amountMinor: number, currency: string): number {
+    const rate = DonationRepo.CURRENCY_TO_EUR_RATES[currency.toUpperCase()];
+    if (!rate) return amountMinor;
+    const eur = (amountMinor / DonationRepo.EUR_MINOR_UNITS) * rate;
+    return Math.round(eur * DonationRepo.EUR_MINOR_UNITS);
+  }
+
+  private calculateMonthsSince(start: Date, end: Date): number {
+    if (end <= start) return 1;
+    const startYearMonth = start.getUTCFullYear() * 12 + start.getUTCMonth();
+    const endYearMonth = end.getUTCFullYear() * 12 + end.getUTCMonth();
+    const months = endYearMonth - startYearMonth + 1;
+    return Math.max(1, months);
+  }
+
+  private resolveBadgeProgress(
+    currentValue: number,
+    thresholds: number[],
+  ): SupporterBadgeBranchProgress {
+    let level = 0;
+    for (const threshold of thresholds) {
+      if (currentValue >= threshold) level += 1;
+    }
+
+    const nextLevel = level >= thresholds.length ? null : level + 1;
+    const nextThreshold = nextLevel ? thresholds[nextLevel - 1] : null;
+
+    return {
+      level,
+      maxLevel: thresholds.length,
+      nextLevel,
+      nextThreshold,
+    };
+  }
+
+  async getSupporterProgress(userId: string): Promise<SupporterProgress> {
+    const query = await this.db.query<{
+      donation_type: "one_time" | "monthly";
+      amount_minor: number;
+      currency: string;
+      status: "active" | "completed" | "canceled";
+      current_period_start: Date | null;
+      current_period_end: Date | null;
+      canceled_at: Date | null;
+      created_at: Date;
+      updated_at: Date;
+    }>(
+      `
+      SELECT
+        donation_type,
+        amount_minor,
+        currency,
+        status,
+        current_period_start,
+        current_period_end,
+        canceled_at,
+        created_at,
+        updated_at
+      FROM billing.donations
+      WHERE
+        is_archived = false
+        AND user_id = $1
+        AND (
+          (donation_type = 'one_time' AND status = 'completed')
+          OR
+          (donation_type = 'monthly' AND status IN ('active', 'completed', 'canceled'))
+        )
+      `,
+      [userId],
+    );
+
+    let totalDonatedEurMinor = 0;
+    let monthlySupportingMonths = 0;
+    const now = new Date();
+
+    for (const row of query.rows) {
+      if (row.donation_type === "one_time") {
+        totalDonatedEurMinor += this.amountToEurMinor(row.amount_minor, row.currency);
+        continue;
+      }
+
+      const monthlyStart = row.current_period_start ?? row.created_at;
+      const monthlyEnd =
+        row.status === "active"
+          ? now
+          : (row.canceled_at ?? row.current_period_end ?? row.updated_at ?? row.created_at);
+      const months = this.calculateMonthsSince(monthlyStart, monthlyEnd);
+      monthlySupportingMonths += months;
+
+      const eurPerMonthMinor = this.amountToEurMinor(row.amount_minor, row.currency);
+      totalDonatedEurMinor += eurPerMonthMinor * months;
+    }
+
+    const amountBranch = this.resolveBadgeProgress(
+      totalDonatedEurMinor,
+      DonationRepo.AMOUNT_BADGE_THRESHOLDS_EUR_MINOR,
+    );
+    const monthlyBranch = this.resolveBadgeProgress(
+      monthlySupportingMonths,
+      DonationRepo.MONTHLY_BADGE_THRESHOLDS_MONTHS,
+    );
+
+    const unlockedBadges: string[] = [];
+    for (let i = 1; i <= amountBranch.level; i += 1) {
+      unlockedBadges.push(`amount_l${i}`);
+    }
+    for (let i = 1; i <= monthlyBranch.level; i += 1) {
+      unlockedBadges.push(`months_l${i}`);
+    }
+
+    return {
+      totalDonatedEurMinor,
+      monthlySupportingMonths,
+      unlockedBadges,
+      amountBranch,
+      monthlyBranch,
     };
   }
 }

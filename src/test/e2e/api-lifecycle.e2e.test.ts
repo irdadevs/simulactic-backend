@@ -291,5 +291,14 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
       .post(`/api/v1/donations/checkout/${sessionId}/confirm`)
       .set("Cookie", userALogin.cookies)
       .expect(204);
+
+    const progress = await request(app)
+      .get("/api/v1/users/me/supporter-progress")
+      .set("Cookie", userALogin.cookies)
+      .expect(200);
+
+    expect(Number(progress.body.totalDonatedEurMinor)).toBeGreaterThan(0);
+    expect(Number(progress.body.monthlySupportingMonths)).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(progress.body.unlockedBadges)).toBe(true);
   });
 });

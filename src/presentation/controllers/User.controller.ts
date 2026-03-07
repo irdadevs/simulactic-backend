@@ -32,6 +32,7 @@ import { Email, User, Username, Uuid } from "../../domain/aggregates/User";
 import { AUTH_COOKIE_NAMES, getCookie } from "../../utils/Cookies";
 import { TOKEN_TIMES_MAP } from "../../utils/TokenTimes.map";
 import { SecurityBanService } from "../../app/app-services/security/SecurityBan.service";
+import { GetSupporterProgress } from "../../app/use-cases/queries/donations/GetSupporterProgress.query";
 
 export class UserController {
   constructor(
@@ -42,6 +43,7 @@ export class UserController {
     private readonly platformService: PlatformService,
     private readonly lifecycleService: LifecycleService,
     private readonly securityBan: SecurityBanService,
+    private readonly getSupporterProgress: GetSupporterProgress,
   ) {}
 
   private isAdmin(req: Request): boolean {
@@ -587,6 +589,21 @@ export class UserController {
       }
       return res.status(200).json({
         user: this.toPublicUserFromAggregate(user),
+      });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public mySupporterProgress = async (req: Request, res: Response) => {
+    try {
+      const progress = await this.getSupporterProgress.execute(req.auth.userId);
+      return res.status(200).json({
+        totalDonatedEurMinor: progress.totalDonatedEurMinor,
+        monthlySupportingMonths: progress.monthlySupportingMonths,
+        unlockedBadges: progress.unlockedBadges,
+        amountBranch: progress.amountBranch,
+        monthlyBranch: progress.monthlyBranch,
       });
     } catch (err: unknown) {
       return errorHandler(err, res);

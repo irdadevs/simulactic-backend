@@ -150,6 +150,38 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(response.body).not.toHaveProperty("providerSessionId");
   });
 
+  test("returns supporter badge progress for current user", async () => {
+    const { app } = buildTestApi();
+    const response = await request(app)
+      .get("/api/v1/users/me/supporter-progress")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        totalDonatedEurMinor: expect.any(Number),
+        monthlySupportingMonths: expect.any(Number),
+      }),
+    );
+    expect(Array.isArray(response.body.unlockedBadges)).toBe(true);
+    expect(response.body.amountBranch).toEqual(
+      expect.objectContaining({
+        level: expect.any(Number),
+        maxLevel: expect.any(Number),
+        nextLevel: expect.anything(),
+        nextThreshold: expect.anything(),
+      }),
+    );
+    expect(response.body.monthlyBranch).toEqual(
+      expect.objectContaining({
+        level: expect.any(Number),
+        maxLevel: expect.any(Number),
+        nextLevel: expect.anything(),
+        nextThreshold: expect.anything(),
+      }),
+    );
+  });
+
   test("allows admin to ban a user", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)

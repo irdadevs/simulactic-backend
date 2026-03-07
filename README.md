@@ -54,6 +54,20 @@ Some admin endpoints support `?view=dashboard` to return extended, sanitized pay
 - Donations: exposes provider type and masked provider identifiers.
 - Logs and metrics: includes additional admin context with sensitive values redacted/masked.
 
+### Supporter badges and progress
+
+Supporter progression is computed from persisted donations and exposed as a compact client payload:
+
+- `totalDonatedEurMinor`: total donations converted to EUR minor units.
+- `monthlySupportingMonths`: total elapsed monthly support time.
+- `unlockedBadges`: badge ids (`amount_l*`, `months_l*`) for client-side rehydration.
+- `amountBranch` / `monthlyBranch`: current level and next threshold.
+
+Badge branches:
+
+- Amount (EUR): `5, 20, 50, 100, 250, 500` EUR.
+- Monthly support: `1, 3, 6, 12, 24, 36` months.
+
 ## Security Ban System
 
 Security bans are implemented at both user and IP level.
@@ -125,6 +139,7 @@ All endpoints below are prefixed by `/api/v1`.
 - `POST /users/verify` (public)
 - `POST /users/verify/resend` (public)
 - `GET /users/me` (Auth)
+- `GET /users/me/supporter-progress` (Auth)
 - `PATCH /users/me/email` (Auth)
 - `PATCH /users/me/password` (Auth)
 - `PATCH /users/me/username` (Auth)
