@@ -23,6 +23,8 @@ describe("resolveMaintenanceConfig", () => {
       MAINTENANCE_HOUSEKEEPING_INTERVAL_MIN: "10",
       MAINTENANCE_USERS_ARCHIVE_INTERVAL_MIN: "20",
       MAINTENANCE_PARTITION_PLAN_INTERVAL_MIN: "30",
+      MAINTENANCE_FX_RATES_REFRESH_INTERVAL_MIN: "1440",
+      MAINTENANCE_FX_RATES_SOURCE_URL: "https://example.local/fx.xml",
     } as NodeJS.ProcessEnv);
 
     expect(cfg.enabled).toBe(false);
@@ -34,5 +36,7 @@ describe("resolveMaintenanceConfig", () => {
     expect(cfg.housekeepingIntervalMs).toBe(10 * 60_000);
     expect(cfg.usersArchiveIntervalMs).toBe(20 * 60_000);
     expect(cfg.partitionPlanIntervalMs).toBe(30 * 60_000);
+    expect(cfg.fxRatesRefreshIntervalMs).toBe(1440 * 60_000);
+    expect(cfg.fxRatesSourceUrl).toBe("https://example.local/fx.xml");
   });
 });

@@ -63,6 +63,8 @@ Supporter progression is computed from persisted donations and exposed as a comp
 - `unlockedBadges`: badge ids (`amount_l*`, `months_l*`) for client-side rehydration.
 - `amountBranch` / `monthlyBranch`: current level and next threshold.
 
+EUR normalization now uses persisted daily FX rates (`billing.fx_rates_daily`) refreshed by maintenance jobs from ECB.
+
 Badge branches:
 
 - Amount (EUR): `5, 20, 50, 100, 250, 500` EUR.
@@ -270,6 +272,7 @@ All endpoints below are prefixed by `/api/v1`.
 - `006_donations.sql`
 - `007_maintenance.sql`
 - `008_security_bans.sql` (security schema, user/IP bans)
+- `009_fx_rates.sql` (daily FX rates for EUR normalization)
 
 ## Local Development
 
@@ -316,3 +319,6 @@ npm run prepare
 - SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`
 - Maintenance: `MAINTENANCE_*`
+  - FX refresh:
+    - `MAINTENANCE_FX_RATES_REFRESH_INTERVAL_MIN`
+    - `MAINTENANCE_FX_RATES_SOURCE_URL`

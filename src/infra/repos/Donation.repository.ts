@@ -13,15 +13,6 @@ export default class DonationRepo implements IDonation {
   constructor(private readonly db: Queryable) {}
 
   private static readonly EUR_MINOR_UNITS = 100;
-  private static readonly CURRENCY_TO_EUR_RATES: Record<string, number> = {
-    EUR: 1,
-    USD: 0.92,
-    GBP: 1.17,
-    CHF: 1.04,
-    CAD: 0.68,
-    AUD: 0.61,
-    JPY: 0.0062,
-  };
   private static readonly AMOUNT_BADGE_THRESHOLDS_EUR_MINOR = [
     500, 2_000, 5_000, 10_000, 25_000, 50_000,
   ];
@@ -209,11 +200,50 @@ export default class DonationRepo implements IDonation {
     };
   }
 
-  private amountToEurMinor(amountMinor: number, currency: string): number {
-    const rate = DonationRepo.CURRENCY_TO_EUR_RATES[currency.toUpperCase()];
+  private amountToEurMinor(
+    amountMinor: number,
+    currency: string,
+    ratesToEur: Record<string, number>,
+  ): number {
+    const rate = ratesToEur[currency.toUpperCase()];
     if (!rate) return amountMinor;
     const eur = (amountMinor / DonationRepo.EUR_MINOR_UNITS) * rate;
     return Math.round(eur * DonationRepo.EUR_MINOR_UNITS);
+  }
+
+  private async getLatestRatesToEur(currencies: string[]): Promise<Record<string, number>> {
+    const normalized = Array.from(
+      new Set(
+        currencies.map((value) => value.trim().toUpperCase()).filter((value) => value.length === 3),
+      ),
+    );
+
+    if (normalized.length === 0) {
+      return { EUR: 1 };
+    }
+
+    const query = await this.db.query<{ currency: string; rate_to_eur: string | number }>(
+      `
+      SELECT DISTINCT ON (currency)
+        currency,
+        rate_to_eur
+      FROM billing.fx_rates_daily
+      WHERE currency = ANY($1::char(3)[])
+      ORDER BY currency, rate_date DESC
+      `,
+      [normalized],
+    );
+
+    const rates: Record<string, number> = { EUR: 1 };
+    for (const row of query.rows) {
+      const currency = String(row.currency).trim().toUpperCase();
+      const rate = Number(row.rate_to_eur);
+      if (currency && Number.isFinite(rate) && rate > 0) {
+        rates[currency] = rate;
+      }
+    }
+
+    return rates;
   }
 
   private calculateMonthsSince(start: Date, end: Date): number {
@@ -280,13 +310,15 @@ export default class DonationRepo implements IDonation {
       [userId],
     );
 
+    const ratesToEur = await this.getLatestRatesToEur(query.rows.map((row) => row.currency));
+
     let totalDonatedEurMinor = 0;
     let monthlySupportingMonths = 0;
     const now = new Date();
 
     for (const row of query.rows) {
       if (row.donation_type === "one_time") {
-        totalDonatedEurMinor += this.amountToEurMinor(row.amount_minor, row.currency);
+        totalDonatedEurMinor += this.amountToEurMinor(row.amount_minor, row.currency, ratesToEur);
         continue;
       }
 
@@ -298,7 +330,7 @@ export default class DonationRepo implements IDonation {
       const months = this.calculateMonthsSince(monthlyStart, monthlyEnd);
       monthlySupportingMonths += months;
 
-      const eurPerMonthMinor = this.amountToEurMinor(row.amount_minor, row.currency);
+      const eurPerMonthMinor = this.amountToEurMinor(row.amount_minor, row.currency, ratesToEur);
       totalDonatedEurMinor += eurPerMonthMinor * months;
     }
 

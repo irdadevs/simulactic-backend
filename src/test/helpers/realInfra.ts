@@ -117,6 +117,7 @@ async function truncateAll(db: PgPoolQueryable): Promise<void> {
         procedurals.asteroids,
         procedurals.systems,
         procedurals.galaxies,
+        billing.fx_rates_daily,
         billing.donations,
         billing.donations_archive,
         metrics.performance_metrics,
