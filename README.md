@@ -159,6 +159,13 @@ All endpoints below are prefixed by `/api/v1`.
 - `POST /users/:id/ban` (Auth + Admin)
 - `POST /users/:id/unban` (Auth + Admin)
 
+Password change contract:
+
+- `PATCH /users/me/password` requires body:
+  - `{ "currentPassword": "string(min:6)", "newPassword": "string(min:6)" }`
+- If `currentPassword` is wrong, API returns `400` with `AUTH.INVALID_CREDENTIALS`.
+- On success, password is updated and all user sessions are revoked.
+
 ### Galaxies
 
 - `POST /galaxies` (Auth)
