@@ -165,11 +165,19 @@ All endpoints below are prefixed by `/api/v1`.
 - `GET /galaxies` (Auth)
 - `GET /galaxies/owner/:ownerId` (Auth)
 - `GET /galaxies/name/:name` (Auth)
+- `GET /galaxies/counts/global` (Auth + Admin)
 - `GET /galaxies/:id/populate` (Auth)
+- `GET /galaxies/:id/counts` (Auth)
 - `GET /galaxies/:id` (Auth)
 - `PATCH /galaxies/:id/name` (Auth)
 - `PATCH /galaxies/:id/shape` (Auth)
 - `DELETE /galaxies/:id` (Auth)
+
+Galaxy read model notes:
+
+- `GET /galaxies/:id/populate` returns the full galaxy tree (`galaxy` + all `systems`, `stars`, `planets`, `moons`, `asteroids`) without truncation.
+- `GET /galaxies/:id/counts` returns per-galaxy aggregate counts: `systems`, `stars`, `planets`, `moons`, `asteroids`.
+- `GET /galaxies/counts/global` returns global aggregate counts: `galaxies`, `systems`, `stars`, `planets`, `moons`, `asteroids` (admin-only).
 
 ### Systems
 
@@ -249,6 +257,10 @@ All endpoints below are prefixed by `/api/v1`.
 - Donation: entity `1 week`, list `6 hours`
 - Log: entity `1 hour`, list `5 minutes`
 - Metric: entity `10 minutes`, list/dashboard `1 minute`
+
+Populate cache invalidation:
+
+- Galaxy populate snapshots are invalidated on mutations that affect the galaxy tree (galaxy shape, system/star/planet/moon/asteroid updates, and galaxy deletion).
 
 ## Observability
 
