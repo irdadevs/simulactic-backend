@@ -1,5 +1,8 @@
 import { IHasher } from "../../app/interfaces/Hasher.port";
+import { ISession } from "../../app/interfaces/Session.port";
 import { IUser, UserListItem } from "../../app/interfaces/User.port";
+import { UserCacheService } from "../../app/app-services/users/UserCache.service";
+import { ChangePassword } from "../../app/use-cases/commands/users/ChangePassword.command";
 import { LoginUser } from "../../app/use-cases/commands/users/LoginUser.command";
 import { User, Uuid } from "../../domain/aggregates/User";
 
@@ -393,5 +396,141 @@ describe("LoginUser command", () => {
     expect(result.isArchived).toBe(false);
     expect(result.isDeleted).toBe(false);
     expect(repo.save).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ChangePassword command", () => {
+  it("rejects when current password is invalid", async () => {
+    const user = User.create({
+      id: "44444444-4444-4444-8444-444444444444",
+      email: "change@test.com",
+      passwordHash: "stored-hash-123",
+      username: "change_user",
+      isVerified: true,
+    });
+
+    const repo: IUser = {
+      save: jest.fn(async (u): Promise<User> => u),
+      findById: jest.fn(async (): Promise<User | null> => user),
+      findByEmail: jest.fn(async (): Promise<User | null> => null),
+      findByUsername: jest.fn(async (): Promise<User | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: UserListItem[]; total: number }> => ({
+          rows: [],
+          total: 0,
+        }),
+      ),
+      changeEmail: jest.fn(async (): Promise<User> => user),
+      changePassword: jest.fn(async (): Promise<User> => user),
+      changeUsername: jest.fn(async (): Promise<User> => user),
+      changeRole: jest.fn(async (): Promise<User> => user),
+      verify: jest.fn(async (): Promise<void> => undefined),
+      softDelete: jest.fn(async (): Promise<void> => undefined),
+      restore: jest.fn(async (): Promise<void> => undefined),
+      touchActivity: jest.fn(async (): Promise<void> => undefined),
+      archiveInactive: jest.fn(
+        async (): Promise<Array<{ id: string; email: string; username: string }>> => [],
+      ),
+    };
+
+    const hasher: IHasher = {
+      hash: jest.fn(async () => "new-hash-123"),
+      compare: jest.fn(async () => false),
+    };
+
+    const sessionRepo: ISession = {
+      create: jest.fn(async (): Promise<void> => undefined),
+      save: jest.fn(async (): Promise<void> => undefined),
+      findById: jest.fn(async (): Promise<null> => null),
+      revoke: jest.fn(async (): Promise<void> => undefined),
+      revokeAllForUser: jest.fn(async (): Promise<void> => undefined),
+      updateRefreshTokenHash: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const userCache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+
+    const command = new ChangePassword(repo, hasher, sessionRepo, userCache);
+
+    await expect(
+      command.execute(Uuid.create(user.id), {
+        currentPassword: "wrong-password",
+        newPassword: "new-pass-123",
+      }),
+    ).rejects.toMatchObject({ code: "AUTH.INVALID_CREDENTIALS" });
+
+    expect(hasher.compare).toHaveBeenCalledWith("wrong-password", user.passwordHash);
+    expect(hasher.hash).not.toHaveBeenCalled();
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(userCache.invalidateForMutation).not.toHaveBeenCalled();
+    expect(sessionRepo.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
+  it("changes password when current password is valid", async () => {
+    const user = User.create({
+      id: "55555555-5555-4555-8555-555555555555",
+      email: "change-ok@test.com",
+      passwordHash: "stored-hash-123",
+      username: "change_ok_user",
+      isVerified: true,
+    });
+
+    const repo: IUser = {
+      save: jest.fn(async (u): Promise<User> => u),
+      findById: jest.fn(async (): Promise<User | null> => user),
+      findByEmail: jest.fn(async (): Promise<User | null> => null),
+      findByUsername: jest.fn(async (): Promise<User | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: UserListItem[]; total: number }> => ({
+          rows: [],
+          total: 0,
+        }),
+      ),
+      changeEmail: jest.fn(async (): Promise<User> => user),
+      changePassword: jest.fn(async (): Promise<User> => user),
+      changeUsername: jest.fn(async (): Promise<User> => user),
+      changeRole: jest.fn(async (): Promise<User> => user),
+      verify: jest.fn(async (): Promise<void> => undefined),
+      softDelete: jest.fn(async (): Promise<void> => undefined),
+      restore: jest.fn(async (): Promise<void> => undefined),
+      touchActivity: jest.fn(async (): Promise<void> => undefined),
+      archiveInactive: jest.fn(
+        async (): Promise<Array<{ id: string; email: string; username: string }>> => [],
+      ),
+    };
+
+    const hasher: IHasher = {
+      hash: jest.fn(async () => "new-hash-456"),
+      compare: jest.fn(async () => true),
+    };
+
+    const sessionRepo: ISession = {
+      create: jest.fn(async (): Promise<void> => undefined),
+      save: jest.fn(async (): Promise<void> => undefined),
+      findById: jest.fn(async (): Promise<null> => null),
+      revoke: jest.fn(async (): Promise<void> => undefined),
+      revokeAllForUser: jest.fn(async (): Promise<void> => undefined),
+      updateRefreshTokenHash: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const userCache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+
+    const command = new ChangePassword(repo, hasher, sessionRepo, userCache);
+
+    const result = await command.execute(Uuid.create(user.id), {
+      currentPassword: "current-pass-123",
+      newPassword: "new-pass-456",
+    });
+
+    expect(result).toBe(true);
+    expect(hasher.compare).toHaveBeenCalledWith("current-pass-123", "stored-hash-123");
+    expect(hasher.hash).toHaveBeenCalledWith("new-pass-456");
+    expect(user.passwordHash).toBe("new-hash-456");
+    expect(repo.save).toHaveBeenCalledWith(user);
+    expect(userCache.invalidateForMutation).toHaveBeenCalledWith(user);
+    expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith(user.id);
   });
 });

@@ -23,6 +23,14 @@ export class ChangePassword {
       });
     }
 
+    const currentPasswordMatches = await this.hasher.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!currentPasswordMatches) {
+      throw ErrorFactory.presentation("AUTH.INVALID_CREDENTIALS");
+    }
+
     const newHash = await this.hasher.hash(dto.newPassword);
 
     user.changePasswordHash(newHash);
