@@ -47,10 +47,7 @@ describe("Log aggregate", () => {
       message: "Something happened",
     });
 
-    log.resolve(
-      "22222222-2222-4222-8222-222222222222",
-      new Date("2025-01-01T00:00:00.000Z"),
-    );
+    log.resolve("22222222-2222-4222-8222-222222222222", new Date("2025-01-01T00:00:00.000Z"));
     expect(log.resolvedBy).toBe("22222222-2222-4222-8222-222222222222");
     expect(log.resolvedAt?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
   });
@@ -118,5 +115,28 @@ describe("CreateLog command", () => {
       nested: { password: "[redacted]" },
     });
     expect(cache.invalidateForMutation).toHaveBeenCalledWith(saved.id);
+  });
+
+  it("auto-resolves info logs on creation", async () => {
+    const repo: Pick<ILog, "save"> = {
+      save: jest.fn(async (log) => log),
+    };
+    const cache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as LogCacheService;
+
+    const command = new CreateLog(repo as ILog, cache);
+    const occurredAt = new Date("2026-03-08T10:00:00.000Z");
+    const result = await command.execute({
+      source: "http",
+      level: "info",
+      category: "audit",
+      message: "Resource updated",
+      occurredAt,
+    });
+
+    expect(result.level).toBe("info");
+    expect(result.resolvedAt?.toISOString()).toBe("2026-03-08T10:00:00.000Z");
+    expect(result.resolvedBy).toBeNull();
   });
 });
