@@ -1,12 +1,7 @@
 import { ISystem } from "../../app/interfaces/System.port";
 import { Queryable, QueryResultRow } from "../../config/db/Queryable";
-import { paginateFrom } from "../../utils/Pagination";
 import { ErrorFactory } from "../../utils/errors/Error.map";
-import {
-  System,
-  SystemName,
-  SystemPositionProps,
-} from "../../domain/aggregates/System";
+import { System, SystemName, SystemPositionProps } from "../../domain/aggregates/System";
 import { Uuid } from "../../domain/aggregates/User";
 
 export default class SystemRepo implements ISystem {
@@ -25,10 +20,7 @@ export default class SystemRepo implements ISystem {
     });
   }
 
-  private async findOneBy(
-    whereSql: string,
-    params: any[],
-  ): Promise<System | null> {
+  private async findOneBy(whereSql: string, params: any[]): Promise<System | null> {
     const sql = `
       SELECT id, galaxy_id, name, position_x, position_y, position_z
       FROM procedurals.systems
@@ -60,14 +52,7 @@ export default class SystemRepo implements ISystem {
         position_z = EXCLUDED.position_z,
         updated_at = now_utc()
       `,
-      [
-        dto.id,
-        dto.galaxy_id,
-        dto.name,
-        dto.position_x,
-        dto.position_y,
-        dto.position_z,
-      ],
+      [dto.id, dto.galaxy_id, dto.name, dto.position_x, dto.position_y, dto.position_z],
     );
     return system;
   }
@@ -76,21 +61,18 @@ export default class SystemRepo implements ISystem {
     return this.findOneBy("WHERE id = $1", [id.toString()]);
   }
 
-  async findByGalaxy(
-    galaxyId: Uuid,
-  ): Promise<{ rows: System[]; total: number }> {
-    const { rows, total } = await paginateFrom(
-      this.db,
-      "FROM procedurals.systems WHERE galaxy_id = $1",
+  async findByGalaxy(galaxyId: Uuid): Promise<{ rows: System[]; total: number }> {
+    const query = await this.db.query(
+      `
+      SELECT id, galaxy_id, name, position_x, position_y, position_z
+      FROM procedurals.systems
+      WHERE galaxy_id = $1
+      ORDER BY name ASC
+      `,
       [galaxyId.toString()],
-      {
-        orderMap: { name: "name" },
-        orderBy: "name",
-        orderDir: "asc",
-        select: "id, galaxy_id, name, position_x, position_y, position_z",
-      },
     );
-    return { rows: rows.map((row) => this.mapRow(row)), total };
+    const rows = query.rows.map((row) => this.mapRow(row));
+    return { rows, total: rows.length };
   }
 
   async findByName(name: SystemName): Promise<System | null> {
@@ -98,10 +80,11 @@ export default class SystemRepo implements ISystem {
   }
 
   async findByPosition(position: SystemPositionProps): Promise<System | null> {
-    return this.findOneBy(
-      "WHERE position_x = $1 AND position_y = $2 AND position_z = $3",
-      [position.x, position.y, position.z],
-    );
+    return this.findOneBy("WHERE position_x = $1 AND position_y = $2 AND position_z = $3", [
+      position.x,
+      position.y,
+      position.z,
+    ]);
   }
 
   async changeName(id: Uuid, name: SystemName): Promise<System> {
@@ -128,10 +111,7 @@ export default class SystemRepo implements ISystem {
     return system;
   }
 
-  async changePosition(
-    id: Uuid,
-    position: SystemPositionProps,
-  ): Promise<System> {
+  async changePosition(id: Uuid, position: SystemPositionProps): Promise<System> {
     const res = await this.db.query(
       `UPDATE procedurals.systems
        SET position_x = $1, position_y = $2, position_z = $3, updated_at = now_utc()
@@ -157,10 +137,9 @@ export default class SystemRepo implements ISystem {
   }
 
   async delete(id: Uuid): Promise<void> {
-    const res = await this.db.query(
-      `DELETE FROM procedurals.systems WHERE id = $1`,
-      [id.toString()],
-    );
+    const res = await this.db.query(`DELETE FROM procedurals.systems WHERE id = $1`, [
+      id.toString(),
+    ]);
     if (res.rowCount === 0) {
       throw ErrorFactory.infra("SHARED.NOT_FOUND", {
         sourceType: "system",

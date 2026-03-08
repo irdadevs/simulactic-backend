@@ -67,6 +67,8 @@ import { DeleteGalaxy } from "../../app/use-cases/commands/galaxies/DeleteGalaxy
 import { FindGalaxy } from "../../app/use-cases/queries/galaxies/FindGalaxy.query";
 import { ListGalaxies } from "../../app/use-cases/queries/galaxies/ListGalaxies.query";
 import { PopulateGalaxy } from "../../app/use-cases/queries/galaxies/PopulateGalaxy.query";
+import { GetGalaxyAggregateCounts } from "../../app/use-cases/queries/galaxies/GetGalaxyAggregateCounts.query";
+import { GetGlobalProceduralCounts } from "../../app/use-cases/queries/galaxies/GetGlobalProceduralCounts.query";
 import { GalaxyLifecycleService } from "../../app/app-services/galaxies/GalaxyLifecycle.service";
 import { FindSystem } from "../../app/use-cases/queries/systems/FindSystem.query";
 import { ListSystemsByGalaxy } from "../../app/use-cases/queries/systems/ListSystemsByGalaxy.query";
@@ -296,6 +298,8 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     asteroidRepo,
     galaxyCache,
   );
+  const getGalaxyAggregateCounts = new GetGalaxyAggregateCounts(galaxyRepo);
+  const getGlobalProceduralCounts = new GetGlobalProceduralCounts(galaxyRepo);
   const findSystem = new FindSystem(systemRepo, systemCache);
   const listSystemsByGalaxy = new ListSystemsByGalaxy(systemRepo, systemCache);
   const changeSystemName = new ChangeSystemName(systemRepo, systemCache, galaxyCache);
@@ -415,6 +419,8 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     findGalaxy,
     listGalaxies,
     populateGalaxy,
+    getGalaxyAggregateCounts,
+    getGlobalProceduralCounts,
   );
   const systemController = new SystemController(
     findSystem,
