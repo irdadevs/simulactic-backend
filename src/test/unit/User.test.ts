@@ -400,6 +400,65 @@ describe("LoginUser command", () => {
 });
 
 describe("ChangePassword command", () => {
+  it("returns not found when user does not exist", async () => {
+    const repo: IUser = {
+      save: jest.fn(async (u): Promise<User> => u),
+      findById: jest.fn(async (): Promise<User | null> => null),
+      findByEmail: jest.fn(async (): Promise<User | null> => null),
+      findByUsername: jest.fn(async (): Promise<User | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: UserListItem[]; total: number }> => ({
+          rows: [],
+          total: 0,
+        }),
+      ),
+      changeEmail: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changePassword: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changeUsername: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changeRole: jest.fn(async (): Promise<User> => User.create(validInput)),
+      verify: jest.fn(async (): Promise<void> => undefined),
+      softDelete: jest.fn(async (): Promise<void> => undefined),
+      restore: jest.fn(async (): Promise<void> => undefined),
+      touchActivity: jest.fn(async (): Promise<void> => undefined),
+      archiveInactive: jest.fn(
+        async (): Promise<Array<{ id: string; email: string; username: string }>> => [],
+      ),
+    };
+
+    const hasher: IHasher = {
+      hash: jest.fn(async () => "new-hash-123"),
+      compare: jest.fn(async () => true),
+    };
+
+    const sessionRepo: ISession = {
+      create: jest.fn(async (): Promise<void> => undefined),
+      save: jest.fn(async (): Promise<void> => undefined),
+      findById: jest.fn(async (): Promise<null> => null),
+      revoke: jest.fn(async (): Promise<void> => undefined),
+      revokeAllForUser: jest.fn(async (): Promise<void> => undefined),
+      updateRefreshTokenHash: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const userCache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+
+    const command = new ChangePassword(repo, hasher, sessionRepo, userCache);
+
+    await expect(
+      command.execute(Uuid.create("66666666-6666-4666-8666-666666666666"), {
+        currentPassword: "current-pass-123",
+        newPassword: "new-pass-456",
+      }),
+    ).rejects.toMatchObject({ code: "SHARED.NOT_FOUND" });
+
+    expect(hasher.compare).not.toHaveBeenCalled();
+    expect(hasher.hash).not.toHaveBeenCalled();
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(userCache.invalidateForMutation).not.toHaveBeenCalled();
+    expect(sessionRepo.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
   it("rejects when current password is invalid", async () => {
     const user = User.create({
       id: "44444444-4444-4444-8444-444444444444",

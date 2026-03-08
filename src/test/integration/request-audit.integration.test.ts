@@ -127,4 +127,49 @@ describeMocked("Integration (mocked) - RequestAuditMiddleware", () => {
       }),
     );
   });
+
+  test("does not log non-mutating 2xx responses", async () => {
+    const createLog = { execute: jest.fn(async () => ({ id: "3" })) } as any;
+    const middleware = new RequestAuditMiddleware(createLog);
+    const app = Express();
+    app.use(middleware.bindRequestId());
+    app.use(middleware.logResponse());
+    app.get("/read", (_req, res) => res.status(200).json({ ok: true }));
+
+    await request(app).get("/read").expect(200);
+
+    expect(createLog.execute).not.toHaveBeenCalled();
+  });
+
+  test("uses trimmed x-request-id header and errorMeta message for logged errors", async () => {
+    const createLog = { execute: jest.fn(async () => ({ id: "4" })) } as any;
+    const middleware = new RequestAuditMiddleware(createLog);
+    const app = Express();
+    app.use(middleware.bindRequestId());
+    app.use((req, res, next) => {
+      res.locals.errorMeta = {
+        code: "AUTH.INVALID_CREDENTIALS",
+        message: "Invalid login credentials.",
+        layer: "Presentation",
+      };
+      next();
+    });
+    app.use(middleware.logResponse());
+    app.get("/unauthorized", (_req, res) => res.status(401).json({ ok: false }));
+
+    const response = await request(app)
+      .get("/unauthorized")
+      .set("x-request-id", " req-custom-123 ")
+      .expect(401);
+
+    expect(response.headers["x-request-id"]).toBe("req-custom-123");
+    expect(createLog.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-custom-123",
+        message: "Invalid login credentials.",
+        statusCode: 401,
+        category: "security",
+      }),
+    );
+  });
 });

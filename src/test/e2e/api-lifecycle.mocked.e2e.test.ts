@@ -36,6 +36,12 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.authService.refresh).toHaveBeenCalledWith("valid.refresh.token");
   });
 
+  test("rejects refresh without cookie when body is invalid", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app).post("/api/v1/users/token/refresh").send({}).expect(400);
+    expect(mocks.authService.refresh).not.toHaveBeenCalled();
+  });
+
   test("allows any authenticated user to create galaxies and injects ownerId from auth context", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)
@@ -224,6 +230,34 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
         nextLevel: expect.anything(),
         nextThreshold: expect.anything(),
       }),
+    );
+  });
+
+  test("rejects change password when currentPassword is missing", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .patch("/api/v1/users/me/password")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .send({ newPassword: "newpass123" })
+      .expect(400);
+
+    expect(mocks.platformService.changePassword).not.toHaveBeenCalled();
+  });
+
+  test("forwards both current and new password in change password payload", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .patch("/api/v1/users/me/password")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .send({ currentPassword: "current123", newPassword: "newpass123" })
+      .expect(204);
+
+    expect(mocks.platformService.changePassword).toHaveBeenCalledWith(
+      expect.objectContaining({ toString: expect.any(Function) }),
+      {
+        currentPassword: "current123",
+        newPassword: "newpass123",
+      },
     );
   });
 
