@@ -35,9 +35,21 @@ export function GalaxyRoutes(
     },
     {
       method: "get",
+      path: "/counts/global",
+      before: [auth.requireAuth()],
+      handler: ctrl.globalCounts,
+    },
+    {
+      method: "get",
       path: "/:id/populate",
       before: [auth.requireAuth()],
       handler: ctrl.populate,
+    },
+    {
+      method: "get",
+      path: "/:id/counts",
+      before: [auth.requireAuth()],
+      handler: ctrl.counts,
     },
     {
       method: "get",

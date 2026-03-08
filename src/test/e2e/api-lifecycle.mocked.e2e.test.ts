@@ -99,6 +99,51 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.changeStarMain.execute).not.toHaveBeenCalled();
   });
 
+  test("returns aggregate counts for a galaxy", async () => {
+    const { app, mocks } = buildTestApi();
+    const response = await request(app)
+      .get(`/api/v1/galaxies/${IDS.galaxyA}/counts`)
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      systems: 1,
+      stars: 1,
+      planets: 1,
+      moons: 1,
+      asteroids: 1,
+    });
+    expect(mocks.getGalaxyAggregateCounts.execute).toHaveBeenCalled();
+  });
+
+  test("returns global procedural totals for admin", async () => {
+    const { app, mocks } = buildTestApi();
+    const response = await request(app)
+      .get("/api/v1/galaxies/counts/global")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      galaxies: 2,
+      systems: 2,
+      stars: 2,
+      planets: 2,
+      moons: 2,
+      asteroids: 2,
+    });
+    expect(mocks.getGlobalProceduralCounts.execute).toHaveBeenCalled();
+  });
+
+  test("forbids global procedural totals for non-admin", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .get("/api/v1/galaxies/counts/global")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .expect(403);
+
+    expect(mocks.getGlobalProceduralCounts.execute).not.toHaveBeenCalled();
+  });
+
   test("allows admin to resolve logs", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)

@@ -261,6 +261,55 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(Array.isArray(response.body.systems[0].asteroids)).toBe(true);
   });
 
+  test("counts returns aggregate totals for a galaxy", async () => {
+    const userBLogin = await login(userB.email);
+    const response = await request(app)
+      .get(`/api/v1/galaxies/${galaxyBId}/counts`)
+      .set("Cookie", userBLogin.cookies)
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        systems: expect.any(Number),
+        stars: expect.any(Number),
+        planets: expect.any(Number),
+        moons: expect.any(Number),
+        asteroids: expect.any(Number),
+      }),
+    );
+    expect(response.body.systems).toBeGreaterThan(0);
+    expect(response.body.stars).toBeGreaterThan(0);
+  });
+
+  test("global counts returns total procedural entities for admin", async () => {
+    const adminLogin = await login(admin.email);
+    const response = await request(app)
+      .get("/api/v1/galaxies/counts/global")
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        galaxies: expect.any(Number),
+        systems: expect.any(Number),
+        stars: expect.any(Number),
+        planets: expect.any(Number),
+        moons: expect.any(Number),
+        asteroids: expect.any(Number),
+      }),
+    );
+    expect(response.body.galaxies).toBeGreaterThanOrEqual(2);
+    expect(response.body.systems).toBeGreaterThanOrEqual(2);
+  });
+
+  test("global counts forbids non-admin users", async () => {
+    const userALogin = await login(userA.email);
+    await request(app)
+      .get("/api/v1/galaxies/counts/global")
+      .set("Cookie", userALogin.cookies)
+      .expect(403);
+  });
+
   test("donation lifecycle enforces owner access", async () => {
     const userALogin = await login(userA.email);
     const userBLogin = await login(userB.email);

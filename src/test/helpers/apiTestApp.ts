@@ -228,6 +228,33 @@ export function buildTestApi(): {
         systems: Array.from(systems.values()).filter((s) => s.galaxyId === asId(id)),
       })),
     },
+    getGalaxyAggregateCounts: {
+      execute: jest.fn(async (id: string | { toString(): string }) => {
+        const galaxyId = asId(id);
+        const galaxySystems = Array.from(systems.values()).filter((s) => s.galaxyId === galaxyId);
+        const systemIds = new Set(galaxySystems.map((s) => s.id));
+        const galaxyPlanets = Array.from(planets.values()).filter((p) => systemIds.has(p.systemId));
+        const planetIds = new Set(galaxyPlanets.map((p) => p.id));
+
+        return {
+          systems: galaxySystems.length,
+          stars: Array.from(stars.values()).filter((s) => systemIds.has(s.systemId)).length,
+          planets: galaxyPlanets.length,
+          moons: Array.from(moons.values()).filter((m) => planetIds.has(m.planetId)).length,
+          asteroids: Array.from(asteroids.values()).filter((a) => systemIds.has(a.systemId)).length,
+        };
+      }),
+    },
+    getGlobalProceduralCounts: {
+      execute: jest.fn(async () => ({
+        galaxies: galaxies.size,
+        systems: systems.size,
+        stars: stars.size,
+        planets: planets.size,
+        moons: moons.size,
+        asteroids: asteroids.size,
+      })),
+    },
     findSystem: {
       byId: jest.fn(async (id: string | { toString(): string }) => systems.get(asId(id)) ?? null),
       byName: jest.fn(async (name: string | { toString(): string }) => {
@@ -481,6 +508,8 @@ export function buildTestApi(): {
     mocks.findGalaxy as any,
     mocks.listGalaxies as any,
     mocks.populateGalaxy as any,
+    mocks.getGalaxyAggregateCounts as any,
+    mocks.getGlobalProceduralCounts as any,
   );
 
   const systemController = new SystemController(

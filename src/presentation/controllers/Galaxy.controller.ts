@@ -8,6 +8,8 @@ import { DeleteGalaxy } from "../../app/use-cases/commands/galaxies/DeleteGalaxy
 import { FindGalaxy } from "../../app/use-cases/queries/galaxies/FindGalaxy.query";
 import { ListGalaxies } from "../../app/use-cases/queries/galaxies/ListGalaxies.query";
 import { PopulateGalaxy } from "../../app/use-cases/queries/galaxies/PopulateGalaxy.query";
+import { GetGalaxyAggregateCounts } from "../../app/use-cases/queries/galaxies/GetGalaxyAggregateCounts.query";
+import { GetGlobalProceduralCounts } from "../../app/use-cases/queries/galaxies/GetGlobalProceduralCounts.query";
 import { CreateGalaxyDTO } from "../security/galaxies/CreateGalaxy.dto";
 import { FindGalaxyByIdDTO } from "../security/galaxies/FindGalaxyById.dto";
 import { FindGalaxyByOwnerDTO } from "../security/galaxies/FindGalaxyByOwner.dto";
@@ -35,6 +37,8 @@ export class GalaxyController {
     private readonly findGalaxy: FindGalaxy,
     private readonly listGalaxies: ListGalaxies,
     private readonly populateGalaxy: PopulateGalaxy,
+    private readonly getGalaxyAggregateCounts: GetGalaxyAggregateCounts,
+    private readonly getGlobalProceduralCounts: GetGlobalProceduralCounts,
   ) {}
 
   private isAdmin(req: Request): boolean {
@@ -258,6 +262,40 @@ export class GalaxyController {
           asteroids: systemNode.asteroids.map((asteroid) => presentAsteroid(asteroid)),
         })),
       });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public counts = async (req: Request, res: Response) => {
+    try {
+      const parsed = FindGalaxyByIdDTO.safeParse(req.params);
+      if (!parsed.success) {
+        return invalidBody(res, parsed.error);
+      }
+      const canAccess = await this.assertGalaxyAccess(req, res, parsed.data.id);
+      if (!canAccess) {
+        return res;
+      }
+
+      const counts = await this.getGalaxyAggregateCounts.execute(Uuid.create(parsed.data.id));
+      return res.status(200).json(counts);
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public globalCounts = async (req: Request, res: Response) => {
+    try {
+      if (!this.isAdmin(req)) {
+        return res.status(403).json({
+          ok: false,
+          error: "FORBIDDEN",
+        });
+      }
+
+      const counts = await this.getGlobalProceduralCounts.execute();
+      return res.status(200).json(counts);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
