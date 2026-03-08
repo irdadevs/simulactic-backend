@@ -78,7 +78,7 @@ describeReal("Integration (real infra) - RequestAuditMiddleware", () => {
 
     await waitFor(async () => {
       const rows = await infra.db.query<{ total: number }>(
-        `SELECT COUNT(*)::int AS total FROM logs.error_log WHERE http_path = '/resource' AND http_method = 'PATCH' AND status_code = 204`,
+        `SELECT COUNT(*)::int AS total FROM logs.error_log WHERE http_path = '/resource' AND http_method = 'PATCH' AND status_code = 204 AND resolved_at IS NOT NULL`,
       );
       return Number(rows.rows[0]?.total ?? 0) > 0;
     });

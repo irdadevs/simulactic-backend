@@ -52,8 +52,13 @@ export class CreateLog {
   ) {}
 
   async execute(input: CreateLogInput): Promise<Log> {
+    const occurredAt = input.occurredAt ?? new Date();
+    const resolvedAt = input.level === "info" ? occurredAt : undefined;
+
     const log = Log.create({
       ...input,
+      occurredAt,
+      resolvedAt,
       message: input.message.slice(0, 1000),
       context: normalizeContext(input.context),
       fingerprint: input.fingerprint ?? buildFingerprint(input),
