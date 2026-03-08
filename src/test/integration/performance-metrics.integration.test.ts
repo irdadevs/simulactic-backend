@@ -88,4 +88,45 @@ describeMocked("Integration (mocked) - PerformanceMetricsMiddleware", () => {
       }),
     );
   });
+
+  test("marks metric success=false for 5xx responses", async () => {
+    const trackMetric = { execute: jest.fn(async () => ({ id: "2" })) } as any;
+    const middleware = new PerformanceMetricsMiddleware(trackMetric);
+    const app = Express();
+    app.use(middleware.captureHttpDuration());
+    app.get("/boom", (_req, res) => res.status(503).json({ ok: false }));
+
+    await request(app).get("/boom").expect(503);
+
+    expect(trackMetric.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metricName: "http.request.duration",
+        success: false,
+        tags: expect.objectContaining({
+          statusCode: 503,
+        }),
+      }),
+    );
+  });
+
+  test("stores null userAgent when request header is non-string", async () => {
+    const trackMetric = { execute: jest.fn(async () => ({ id: "3" })) } as any;
+    const middleware = new PerformanceMetricsMiddleware(trackMetric);
+    const app = Express();
+    app.use(middleware.captureHttpDuration());
+    app.get("/ua", (req, res) => {
+      req.headers["user-agent"] = ["not", "a", "string"] as unknown as string;
+      res.status(200).json({ ok: true });
+    });
+
+    await request(app).get("/ua").expect(200);
+
+    expect(trackMetric.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          userAgent: null,
+        }),
+      }),
+    );
+  });
 });
