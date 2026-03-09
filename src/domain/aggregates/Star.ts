@@ -15,17 +15,7 @@ const ALLOWED_STAR_TYPES = [
   "Black hole",
   "Neutron star",
 ] as const;
-const ALLOWED_STAR_CLASS = [
-  "O",
-  "B",
-  "A",
-  "F",
-  "G",
-  "K",
-  "M",
-  "BH",
-  "N",
-] as const;
+const ALLOWED_STAR_CLASS = ["O", "B", "A", "F", "G", "K", "M", "BH", "N"] as const;
 const STAR_PROBABILITIES = [
   0.043, 0.05, 0.074, 0.06, 0.277, 0.3, 0.2445, 0.05333, 0.05117,
 ] as const;
@@ -55,8 +45,10 @@ const STAR_CLASS_TEMPERATURE = {
   G: [5200, 6000],
   K: [3700, 5200],
   M: [2400, 3700],
-  BH: [1, 100],
-  N: [500000, 1000000],
+  // Hawking temperature for stellar-mass black holes (~3-100 M☉).
+  BH: [6.17e-10, 2.06e-8],
+  // Typical neutron-star surface temperatures (cool to young/hot remnants).
+  N: [100000, 2000000],
 } as const;
 
 const STAR_CLASS_MASS = {
@@ -67,8 +59,8 @@ const STAR_CLASS_MASS = {
   G: [0.8, 1.04],
   K: [0.45, 0.8],
   M: [0.08, 0.45],
-  BH: [3, 20],
-  N: [1.1, 2.1],
+  BH: [3, 100],
+  N: [1.1, 2.3],
 } as const;
 
 const STAR_CLASS_RADIUS = {
@@ -79,8 +71,9 @@ const STAR_CLASS_RADIUS = {
   G: [0.96, 1.15],
   K: [0.7, 0.96],
   M: [0.1, 0.7],
-  BH: [0.00001, 0.0001],
-  N: [0.000014, 0.000022],
+  // Physical Rs can be below neutron stars for low-mass BHs; use a render floor.
+  BH: [0.0003, 30],
+  N: [0.000144, 0.00201],
 } as const;
 
 export type StarType = (typeof ALLOWED_STAR_TYPES)[number];
@@ -280,11 +273,15 @@ const neutronStarRadius = (absoluteMass: number): number => {
   return clampedKm * 1000;
 };
 
-const resolveClassForType = (type: StarType): StarClass =>
-  STAR_TYPE_CLASS[type];
+const blackHoleRadius = (absoluteMass: number): number => {
+  const physicalRadius = schwarzschildRadius(absoluteMass);
+  const minVisualRadius = STAR_CLASS_RADIUS.BH[0] * SUN_RADIUS;
+  return Math.max(physicalRadius, minVisualRadius);
+};
 
-const resolveColorForClass = (starClass: StarClass): StarColor =>
-  STAR_CLASS_COLOR[starClass];
+const resolveClassForType = (type: StarType): StarClass => STAR_TYPE_CLASS[type];
+
+const resolveColorForClass = (starClass: StarClass): StarColor => STAR_CLASS_COLOR[starClass];
 
 const ensurePositive = (field: string, value: number): void => {
   if (!Number.isFinite(value) || value <= 0) {
@@ -294,6 +291,12 @@ const ensurePositive = (field: string, value: number): void => {
 
 const ensureNonNegative = (field: string, value: number): void => {
   if (!Number.isFinite(value) || value < 0) {
+    throw ErrorFactory.domain("DOMAIN.INVALID_STAR_VALUE", { field });
+  }
+};
+
+const ensureWithinRange = (field: string, value: number, min: number, max: number): void => {
+  if (!Number.isFinite(value) || value < min || value > max) {
     throw ErrorFactory.domain("DOMAIN.INVALID_STAR_VALUE", { field });
   }
 };
@@ -333,33 +336,37 @@ export class Star {
     const massRange = STAR_CLASS_MASS[starClass.toString()];
     const temperatureRange = STAR_CLASS_TEMPERATURE[starClass.toString()];
 
-    const relativeMass =
-      input.relativeMass ?? randomBetween(massRange[0], massRange[1]);
+    const relativeMass = input.relativeMass ?? randomBetween(massRange[0], massRange[1]);
     const surfaceTemperature =
-      input.surfaceTemperature ??
-      randomBetween(temperatureRange[0], temperatureRange[1]);
+      input.surfaceTemperature ?? randomBetween(temperatureRange[0], temperatureRange[1]);
 
     ensurePositive("relativeMass", relativeMass);
     ensurePositive("surfaceTemperature", surfaceTemperature);
+    ensureWithinRange("relativeMass", relativeMass, massRange[0], massRange[1]);
+    ensureWithinRange(
+      "surfaceTemperature",
+      surfaceTemperature,
+      temperatureRange[0],
+      temperatureRange[1],
+    );
 
     const absoluteMass = relativeMass * SUN_MASS;
     const absoluteRadius =
       starClass.toString() === "BH"
-        ? schwarzschildRadius(absoluteMass)
+        ? blackHoleRadius(absoluteMass)
         : starClass.toString() === "N"
           ? neutronStarRadius(absoluteMass)
           : (() => {
               const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
               const relativeRadius =
-                input.relativeRadius ??
-                randomBetween(radiusRange[0], radiusRange[1]);
+                input.relativeRadius ?? randomBetween(radiusRange[0], radiusRange[1]);
               ensurePositive("relativeRadius", relativeRadius);
+              ensureWithinRange("relativeRadius", relativeRadius, radiusRange[0], radiusRange[1]);
               return relativeRadius * SUN_RADIUS;
             })();
 
     const relativeRadius = absoluteRadius / SUN_RADIUS;
-    const gravity =
-      SUN_SURFACE_GRAVITY * (relativeMass / (relativeRadius * relativeRadius));
+    const gravity = SUN_SURFACE_GRAVITY * (relativeMass / (relativeRadius * relativeRadius));
 
     const orbital = input.orbital ?? 0;
     const orbitalStarter = input.orbitalStarter ?? 0;
@@ -413,9 +420,19 @@ export class Star {
     const color = StarColorValue.create(props.color);
 
     const absoluteMass = props.relativeMass * SUN_MASS;
+    const massRange = STAR_CLASS_MASS[starClass.toString()];
+    const temperatureRange = STAR_CLASS_TEMPERATURE[starClass.toString()];
+    ensureWithinRange("relativeMass", props.relativeMass, massRange[0], massRange[1]);
+    ensureWithinRange(
+      "surfaceTemperature",
+      props.surfaceTemperature,
+      temperatureRange[0],
+      temperatureRange[1],
+    );
+
     const absoluteRadius =
       starClass.toString() === "BH"
-        ? schwarzschildRadius(absoluteMass)
+        ? blackHoleRadius(absoluteMass)
         : starClass.toString() === "N"
           ? neutronStarRadius(absoluteMass)
           : props.relativeRadius * SUN_RADIUS;
@@ -423,8 +440,12 @@ export class Star {
 
     if (starClass.toString() !== "BH" && starClass.toString() !== "N") {
       ensurePositive("relativeRadius", props.relativeRadius);
+      const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
+      ensureWithinRange("relativeRadius", props.relativeRadius, radiusRange[0], radiusRange[1]);
     } else {
       ensurePositive("relativeRadius", relativeRadius);
+      const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
+      ensureWithinRange("relativeRadius", relativeRadius, radiusRange[0], radiusRange[1]);
     }
 
     return new Star({
@@ -439,9 +460,7 @@ export class Star {
       absoluteMass,
       relativeRadius,
       absoluteRadius,
-      gravity:
-        SUN_SURFACE_GRAVITY *
-        (props.relativeMass / (relativeRadius * relativeRadius)),
+      gravity: SUN_SURFACE_GRAVITY * (props.relativeMass / (relativeRadius * relativeRadius)),
       isMain: props.isMain,
       orbital: props.orbital,
       orbitalStarter: props.orbitalStarter,
