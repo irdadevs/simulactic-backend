@@ -22,8 +22,6 @@ const STAR_PROBABILITIES = [
 const SUN_MASS = 1.98847e30 as const; // kg
 const SUN_RADIUS = 6.9634e8 as const; // meters
 const SUN_SURFACE_GRAVITY = 274 as const; // m/s^2
-const GRAVITATIONAL_CONSTANT = 6.6743e-11 as const; // m^3 kg^-1 s^-2
-const SPEED_OF_LIGHT = 299_792_458 as const; // m/s
 
 const STAR_CLASS_COLOR = {
   O: "blue",
@@ -263,22 +261,6 @@ const randomBetween = (min: number, max: number): number => {
   return min + Dice.roll(1) * (max - min);
 };
 
-const schwarzschildRadius = (absoluteMass: number): number =>
-  (2 * GRAVITATIONAL_CONSTANT * absoluteMass) / SPEED_OF_LIGHT ** 2;
-
-const neutronStarRadius = (absoluteMass: number): number => {
-  const massInSolar = absoluteMass / SUN_MASS;
-  const baseKm = 12.5 - (massInSolar - 1.4) * 1.5;
-  const clampedKm = Math.min(14, Math.max(10, baseKm));
-  return clampedKm * 1000;
-};
-
-const blackHoleRadius = (absoluteMass: number): number => {
-  const physicalRadius = schwarzschildRadius(absoluteMass);
-  const minVisualRadius = STAR_CLASS_RADIUS.BH[0] * SUN_RADIUS;
-  return Math.max(physicalRadius, minVisualRadius);
-};
-
 const resolveClassForType = (type: StarType): StarClass => STAR_TYPE_CLASS[type];
 
 const resolveColorForClass = (starClass: StarClass): StarColor => STAR_CLASS_COLOR[starClass];
@@ -351,21 +333,12 @@ export class Star {
     );
 
     const absoluteMass = relativeMass * SUN_MASS;
-    const absoluteRadius =
-      starClass.toString() === "BH"
-        ? blackHoleRadius(absoluteMass)
-        : starClass.toString() === "N"
-          ? neutronStarRadius(absoluteMass)
-          : (() => {
-              const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
-              const relativeRadius =
-                input.relativeRadius ?? randomBetween(radiusRange[0], radiusRange[1]);
-              ensurePositive("relativeRadius", relativeRadius);
-              ensureWithinRange("relativeRadius", relativeRadius, radiusRange[0], radiusRange[1]);
-              return relativeRadius * SUN_RADIUS;
-            })();
-
-    const relativeRadius = absoluteRadius / SUN_RADIUS;
+    const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
+    const relativeRadius =
+      input.relativeRadius ?? randomBetween(radiusRange[0], radiusRange[1]);
+    ensurePositive("relativeRadius", relativeRadius);
+    ensureWithinRange("relativeRadius", relativeRadius, radiusRange[0], radiusRange[1]);
+    const absoluteRadius = relativeRadius * SUN_RADIUS;
     const gravity = SUN_SURFACE_GRAVITY * (relativeMass / (relativeRadius * relativeRadius));
 
     const orbital = input.orbital ?? 0;
@@ -430,23 +403,11 @@ export class Star {
       temperatureRange[1],
     );
 
-    const absoluteRadius =
-      starClass.toString() === "BH"
-        ? blackHoleRadius(absoluteMass)
-        : starClass.toString() === "N"
-          ? neutronStarRadius(absoluteMass)
-          : props.relativeRadius * SUN_RADIUS;
-    const relativeRadius = absoluteRadius / SUN_RADIUS;
-
-    if (starClass.toString() !== "BH" && starClass.toString() !== "N") {
-      ensurePositive("relativeRadius", props.relativeRadius);
-      const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
-      ensureWithinRange("relativeRadius", props.relativeRadius, radiusRange[0], radiusRange[1]);
-    } else {
-      ensurePositive("relativeRadius", relativeRadius);
-      const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
-      ensureWithinRange("relativeRadius", relativeRadius, radiusRange[0], radiusRange[1]);
-    }
+    const radiusRange = STAR_CLASS_RADIUS[starClass.toString()];
+    ensurePositive("relativeRadius", props.relativeRadius);
+    ensureWithinRange("relativeRadius", props.relativeRadius, radiusRange[0], radiusRange[1]);
+    const relativeRadius = props.relativeRadius;
+    const absoluteRadius = relativeRadius * SUN_RADIUS;
 
     return new Star({
       id: Uuid.create(props.id),
