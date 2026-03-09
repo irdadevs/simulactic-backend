@@ -4,3 +4,4 @@
 .env.production
 AGENTS.md
 TODO.md
+createFirstAdmin.ts

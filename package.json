@@ -27,7 +27,8 @@
     "docker:prod:logs": "docker compose -f docker-compose.prod.yaml logs -f api",
     "docker:prod:migrate": "docker compose -f docker-compose.prod.yaml run --rm api npm run migrate:dist",
     "docker:prod:deploy": "npm run docker:prod:build && npm run docker:prod:up && npm run docker:prod:migrate",
-    "initSeed": "ts-node --transpile-only src/infra/db/scripts/initSeed.ts"
+    "initSeed": "ts-node --transpile-only src/infra/db/scripts/initSeed.ts",
+    "create:first-admin": "ts-node --transpile-only src/infra/db/scripts/createFirstAdmin.ts"
   },
   "keywords": [],
   "author": "",

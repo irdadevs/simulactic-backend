@@ -44,24 +44,14 @@ async function main() {
       `,
     );
 
-    const roleResult = await uow.db.query<{ id: number }>(
-      `SELECT id FROM auth.roles WHERE key = 'Admin'`,
-    );
-    const roleId = roleResult.rows[0]?.id;
-    if (!roleId) {
+    const roleResult = await uow.db.query<{ id: number }>(`
+      SELECT id FROM auth.roles WHERE key = 'Admin'
+    `);
+    if (!roleResult.rows[0]?.id) {
       throw ErrorFactory.infra("INFRA.DATABASE_CONNECTION", {
         reason: "admin role not found",
       });
     }
-
-    await uow.db.query(
-      `
-      INSERT INTO auth.user_roles (user_id, role_id)
-      VALUES ($1, $2)
-      ON CONFLICT DO NOTHING
-      `,
-      [roleId],
-    );
 
     await uow.commit();
     logSuccess("seed completed");

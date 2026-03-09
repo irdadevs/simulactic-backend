@@ -78,17 +78,32 @@ describe("Star aggregate", () => {
     );
   });
 
-  it("creates a black hole with derived radius", () => {
+  it("creates a black hole with custom render radius", () => {
     const star = Star.create({
       ...validInput,
       starType: "Black hole",
       starClass: "BH",
       relativeMass: 10,
+      relativeRadius: 0.5,
       name: "AST-010",
     });
 
     expect(star.starClass).toBe("BH");
-    expect(star.relativeRadius).toBeGreaterThan(0);
+    expect(star.relativeRadius).toBe(0.5);
+  });
+
+  it("creates a neutron star with custom render radius", () => {
+    const star = Star.create({
+      ...validInput,
+      starType: "Neutron star",
+      starClass: "N",
+      relativeMass: 1.5,
+      relativeRadius: 0.001,
+      name: "AST-011",
+    });
+
+    expect(star.starClass).toBe("N");
+    expect(star.relativeRadius).toBe(0.001);
   });
 
   it("rehydrates from persistence data", () => {
