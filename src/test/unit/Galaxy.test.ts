@@ -347,3 +347,110 @@ describe("CreateGalaxy command - supporter limit", () => {
     expect(createdGalaxy.systemCount).toBe(1000);
   });
 });
+
+describe("GalaxyLifecycleService - asteroid procedural generation", () => {
+  it("applies random asteroid type and size during procedural creation", async () => {
+    const service = new GalaxyLifecycleService();
+    const galaxy = Galaxy.create({
+      ownerId: "77777777-7777-4777-8777-777777777777",
+      name: "Andromeda",
+      shape: "spherical",
+      systemCount: 1,
+    });
+
+    const asteroidSave = jest.fn(async () => undefined);
+    const repos = {
+      galaxy: { save: jest.fn(async () => undefined) },
+      system: { save: jest.fn(async () => undefined) },
+      star: { save: jest.fn(async () => undefined) },
+      planet: { save: jest.fn(async () => undefined) },
+      moon: { save: jest.fn(async () => undefined) },
+      asteroid: { save: asteroidSave },
+    } as any;
+
+    jest.spyOn(service as any, "planetCountFromStarter").mockReturnValue(0);
+    jest.spyOn(service as any, "asteroidCountFromStarter").mockReturnValue(2);
+    jest.spyOn(service as any, "randomAsteroidType").mockReturnValue("cluster");
+    jest.spyOn(service as any, "randomAsteroidSize").mockReturnValue("massive");
+
+    await service.createGalaxyTree(galaxy, repos);
+
+    expect(asteroidSave).toHaveBeenCalledTimes(2);
+    for (const call of asteroidSave.mock.calls) {
+      const asteroid = call[0];
+      expect(asteroid.type).toBe("cluster");
+      expect(asteroid.size).toBe("massive");
+    }
+  });
+});
+
+describe("GalaxyLifecycleService - planet and moon procedural generation", () => {
+  it("applies random planet type, size and biome during procedural creation", async () => {
+    const service = new GalaxyLifecycleService();
+    const galaxy = Galaxy.create({
+      ownerId: "88888888-8888-4888-8888-888888888888",
+      name: "MilkyWayX",
+      shape: "spherical",
+      systemCount: 1,
+    });
+
+    const planetSave = jest.fn(async () => undefined);
+    const repos = {
+      galaxy: { save: jest.fn(async () => undefined) },
+      system: { save: jest.fn(async () => undefined) },
+      star: { save: jest.fn(async () => undefined) },
+      planet: { save: planetSave },
+      moon: { save: jest.fn(async () => undefined) },
+      asteroid: { save: jest.fn(async () => undefined) },
+    } as any;
+
+    jest.spyOn(service as any, "planetCountFromStarter").mockReturnValue(1);
+    jest.spyOn(service as any, "moonCountFromStarter").mockReturnValue(0);
+    jest.spyOn(service as any, "asteroidCountFromStarter").mockReturnValue(0);
+    jest.spyOn(service as any, "randomPlanetType").mockReturnValue("gas");
+    jest.spyOn(service as any, "randomPlanetSize").mockReturnValue("supergiant");
+    jest.spyOn(service as any, "randomPlanetBiome").mockReturnValue("ice");
+
+    await service.createGalaxyTree(galaxy, repos);
+
+    expect(planetSave).toHaveBeenCalledTimes(1);
+    const createdPlanet = planetSave.mock.calls[0][0];
+    expect(createdPlanet.type).toBe("gas");
+    expect(createdPlanet.size).toBe("supergiant");
+    expect(createdPlanet.biome).toBe("ice");
+  });
+
+  it("applies random moon size during procedural creation", async () => {
+    const service = new GalaxyLifecycleService();
+    const galaxy = Galaxy.create({
+      ownerId: "99999999-9999-4999-8999-999999999999",
+      name: "HydraY",
+      shape: "spherical",
+      systemCount: 1,
+    });
+
+    const moonSave = jest.fn(async () => undefined);
+    const repos = {
+      galaxy: { save: jest.fn(async () => undefined) },
+      system: { save: jest.fn(async () => undefined) },
+      star: { save: jest.fn(async () => undefined) },
+      planet: { save: jest.fn(async () => undefined) },
+      moon: { save: moonSave },
+      asteroid: { save: jest.fn(async () => undefined) },
+    } as any;
+
+    jest.spyOn(service as any, "planetCountFromStarter").mockReturnValue(1);
+    jest.spyOn(service as any, "moonCountFromStarter").mockReturnValue(1);
+    jest.spyOn(service as any, "asteroidCountFromStarter").mockReturnValue(0);
+    jest.spyOn(service as any, "randomPlanetType").mockReturnValue("solid");
+    jest.spyOn(service as any, "randomPlanetSize").mockReturnValue("medium");
+    jest.spyOn(service as any, "randomPlanetBiome").mockReturnValue("temperate");
+    jest.spyOn(service as any, "randomMoonSize").mockReturnValue("giant");
+
+    await service.createGalaxyTree(galaxy, repos);
+
+    expect(moonSave).toHaveBeenCalledTimes(1);
+    const createdMoon = moonSave.mock.calls[0][0];
+    expect(createdMoon.size).toBe("giant");
+  });
+});
