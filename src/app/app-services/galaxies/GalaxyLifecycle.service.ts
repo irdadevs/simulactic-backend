@@ -1,8 +1,17 @@
 import { Queryable } from "../../../config/db/Queryable";
-import { Asteroid } from "../../../domain/aggregates/Asteroid";
+import {
+  Asteroid,
+  AsteroidSize,
+  AsteroidType,
+} from "../../../domain/aggregates/Asteroid";
 import { Galaxy, GalaxyShapeValue } from "../../../domain/aggregates/Galaxy";
-import { Moon } from "../../../domain/aggregates/Moon";
-import { Planet } from "../../../domain/aggregates/Planet";
+import { Moon, MoonSize } from "../../../domain/aggregates/Moon";
+import {
+  Planet,
+  PlanetBiome,
+  PlanetSize,
+  PlanetType,
+} from "../../../domain/aggregates/Planet";
 import { Star, StarType, sampleStarType } from "../../../domain/aggregates/Star";
 import { System } from "../../../domain/aggregates/System";
 import { Uuid } from "../../../domain/aggregates/User";
@@ -46,6 +55,21 @@ const ORBITAL_STARTER_BY_STAR_TYPE: Record<StarType, number> = {
   "Black hole": 5,
   "Neutron star": 4,
 };
+
+const PROCEDURAL_ASTEROID_TYPES: AsteroidType[] = ["single", "cluster"];
+const PROCEDURAL_ASTEROID_SIZES: AsteroidSize[] = ["small", "medium", "big", "massive"];
+const PROCEDURAL_PLANET_TYPES: PlanetType[] = ["solid", "gas"];
+const PROCEDURAL_PLANET_SIZES: PlanetSize[] = ["proto", "dwarf", "medium", "giant", "supergiant"];
+const PROCEDURAL_PLANET_BIOMES: PlanetBiome[] = [
+  "temperate",
+  "desert",
+  "ocean",
+  "ice",
+  "toxic",
+  "radioactive",
+  "crystal",
+];
+const PROCEDURAL_MOON_SIZES: MoonSize[] = ["dwarf", "medium", "giant"];
 
 export class GalaxyLifecycleService {
   private randomInt(min: number, max: number): number {
@@ -161,6 +185,36 @@ export class GalaxyLifecycleService {
     return this.randomInt(0, maxMoons);
   }
 
+  private randomAsteroidType(): AsteroidType {
+    const idx = this.randomInt(0, PROCEDURAL_ASTEROID_TYPES.length - 1);
+    return PROCEDURAL_ASTEROID_TYPES[idx];
+  }
+
+  private randomAsteroidSize(): AsteroidSize {
+    const idx = this.randomInt(0, PROCEDURAL_ASTEROID_SIZES.length - 1);
+    return PROCEDURAL_ASTEROID_SIZES[idx];
+  }
+
+  private randomPlanetType(): PlanetType {
+    const idx = this.randomInt(0, PROCEDURAL_PLANET_TYPES.length - 1);
+    return PROCEDURAL_PLANET_TYPES[idx];
+  }
+
+  private randomPlanetSize(): PlanetSize {
+    const idx = this.randomInt(0, PROCEDURAL_PLANET_SIZES.length - 1);
+    return PROCEDURAL_PLANET_SIZES[idx];
+  }
+
+  private randomPlanetBiome(): PlanetBiome {
+    const idx = this.randomInt(0, PROCEDURAL_PLANET_BIOMES.length - 1);
+    return PROCEDURAL_PLANET_BIOMES[idx];
+  }
+
+  private randomMoonSize(): MoonSize {
+    const idx = this.randomInt(0, PROCEDURAL_MOON_SIZES.length - 1);
+    return PROCEDURAL_MOON_SIZES[idx];
+  }
+
   async createGalaxyTree(
     galaxy: Galaxy,
     repos: ProceduralRepos,
@@ -199,6 +253,9 @@ export class GalaxyLifecycleService {
 
         const planet = Planet.create({
           systemId: system.id,
+          type: this.randomPlanetType(),
+          size: this.randomPlanetSize(),
+          biome: this.randomPlanetBiome(),
           orbital,
         });
         await repos.planet.save(planet);
@@ -208,6 +265,7 @@ export class GalaxyLifecycleService {
           if (m > 5) break;
           const moon = Moon.create({
             planetId: planet.id,
+            size: this.randomMoonSize(),
             orbital: m,
           });
           await repos.moon.save(moon);
@@ -220,6 +278,8 @@ export class GalaxyLifecycleService {
         if (orbital > 8.5) break;
         const asteroid = Asteroid.create({
           systemId: system.id,
+          type: this.randomAsteroidType(),
+          size: this.randomAsteroidSize(),
           orbital,
         });
         await repos.asteroid.save(asteroid);
