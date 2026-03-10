@@ -42,5 +42,5 @@ export interface ILog {
   resolve(id: string, byUserId: string): Promise<Log>;
   reopen(id: string): Promise<Log>;
   setAdminNote(id: string, note: string, byUserId: string): Promise<Log>;
-  clearAdminNote(id: string): Promise<Log>;
+  clearAdminNote(id: string, byUserId: string): Promise<Log>;
 }

@@ -8,13 +8,14 @@ export class ClearAdminNote {
     private readonly cache: LogCacheService,
   ) {}
 
-  async execute(id: string): Promise<void> {
+  async execute(id: string, byUserId: string): Promise<void> {
     const found = await this.repo.findById(id);
     if (!found) {
       throw ErrorFactory.presentation("SHARED.NOT_FOUND", { sourceType: "log", id });
     }
 
-    await this.repo.clearAdminNote(id);
+    found.clearAdminNote(byUserId);
+    await this.repo.clearAdminNote(id, byUserId);
     await this.cache.invalidateForMutation(id);
   }
 }

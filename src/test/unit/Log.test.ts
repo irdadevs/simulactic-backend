@@ -106,11 +106,14 @@ describe("Log aggregate", () => {
     expect(log.adminNoteUpdatedBy).toBe("22222222-2222-4222-8222-222222222222");
     expect(log.adminNoteUpdatedAt?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
 
-    log.clearAdminNote();
+    log.clearAdminNote(
+      "33333333-3333-4333-8333-333333333333",
+      new Date("2025-01-02T00:00:00.000Z"),
+    );
 
     expect(log.adminNote).toBeNull();
-    expect(log.adminNoteUpdatedBy).toBeNull();
-    expect(log.adminNoteUpdatedAt).toBeNull();
+    expect(log.adminNoteUpdatedBy).toBe("33333333-3333-4333-8333-333333333333");
+    expect(log.adminNoteUpdatedAt?.toISOString()).toBe("2025-01-02T00:00:00.000Z");
   });
 
   it("throws on invalid source", () => {
@@ -306,9 +309,9 @@ describe("Admin log note commands", () => {
     } as unknown as LogCacheService;
 
     const command = new ClearAdminNote(repo as ILog, cache);
-    await command.execute("1");
+    await command.execute("1", "11111111-1111-4111-8111-111111111111");
 
-    expect(repo.clearAdminNote).toHaveBeenCalledWith("1");
+    expect(repo.clearAdminNote).toHaveBeenCalledWith("1", "11111111-1111-4111-8111-111111111111");
     expect(cache.invalidateForMutation).toHaveBeenCalledWith("1");
   });
 });

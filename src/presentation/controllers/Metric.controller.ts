@@ -4,6 +4,7 @@ import { FindMetric } from "../../app/use-cases/queries/metrics/FindMetric.query
 import { ListMetrics } from "../../app/use-cases/queries/metrics/ListMetrics.query";
 import { MetricsDashboardQuery } from "../../app/use-cases/queries/metrics/MetricsDashboard.query";
 import { TrafficAnalyticsQueryService } from "../../app/use-cases/queries/metrics/TrafficAnalytics.query";
+import { TrafficAnalyticsQuery } from "../../app/interfaces/Metric.port";
 import { TrackMetricDTO } from "../security/metrics/TrackMetric.dto";
 import { FindMetricByIdDTO } from "../security/metrics/FindMetricById.dto";
 import { ListMetricsDTO } from "../security/metrics/ListMetrics.dto";
@@ -85,7 +86,14 @@ export class MetricController {
     try {
       const parsed = TrafficAnalyticsDTO.safeParse(req.query);
       if (!parsed.success) return invalidBody(res, parsed.error);
-      const result = await this.trafficAnalytics.execute(parsed.data);
+      const query: TrafficAnalyticsQuery = {
+        from: parsed.data.from,
+        to: parsed.data.to,
+        limitRecent: parsed.data.limitRecent,
+        limitRoutes: parsed.data.limitRoutes,
+        limitReferrers: parsed.data.limitReferrers,
+      };
+      const result = await this.trafficAnalytics.execute(query);
       return res.status(200).json(result);
     } catch (err: unknown) {
       return errorHandler(err, res);

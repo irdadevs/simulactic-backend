@@ -387,8 +387,8 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
       .expect(200);
 
     expect(cleared.body.adminNote).toBeNull();
-    expect(cleared.body.adminNoteUpdatedAt).toBeNull();
-    expect(cleared.body.adminNoteUpdatedBy).toBeNull();
+    expect(cleared.body.adminNoteUpdatedAt).not.toBeNull();
+    expect(cleared.body.adminNoteUpdatedBy).toBe(admin.id);
   });
 
   test("admin log dashboard view returns raw unmasked log data", async () => {
@@ -552,6 +552,51 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
         durationMs: 30,
       }),
     );
+  });
+
+  test("admin dashboard log list remains sanitized while single log dashboard is raw", async () => {
+    const adminLogin = await login(admin.email);
+    const created = await request(app)
+      .post("/api/v1/logs")
+      .set("Cookie", adminLogin.cookies)
+      .send({
+        source: "security",
+        level: "warn",
+        category: "security",
+        message: "Sanitized list check",
+        ip: "203.0.113.5",
+        fingerprint: "fp_list_sensitive_1234",
+        context: {
+          authorization: "Bearer list-context-token",
+        },
+      })
+      .expect(201);
+
+    const listed = await request(app)
+      .get("/api/v1/logs?view=dashboard")
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    const listedRow = listed.body.rows.find((row: { id: string }) => row.id === created.body.id);
+    expect(listedRow).toBeDefined();
+    expect(listedRow.context).toEqual({
+      authorization: "[REDACTED]",
+    });
+    expect(listedRow.ipMasked).toBe("203.0.113.***");
+    expect(listedRow.fingerprintMasked).toBe("fp_l...1234");
+    expect(listedRow.ip).toBeUndefined();
+    expect(listedRow.fingerprint).toBeUndefined();
+
+    const single = await request(app)
+      .get(`/api/v1/logs/${created.body.id}?view=dashboard`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(single.body.context).toEqual({
+      authorization: "Bearer list-context-token",
+    });
+    expect(single.body.ip).toBe("203.0.113.5");
+    expect(single.body.fingerprint).toBe("fp_list_sensitive_1234");
   });
 
   test("global counts returns total procedural entities for admin", async () => {
