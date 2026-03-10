@@ -391,6 +391,49 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(cleared.body.adminNoteUpdatedBy).toBeNull();
   });
 
+  test("admin log dashboard view returns raw unmasked log data", async () => {
+    const adminLogin = await login(admin.email);
+    const created = await request(app)
+      .post("/api/v1/logs")
+      .set("Cookie", adminLogin.cookies)
+      .send({
+        source: "security",
+        level: "error",
+        category: "security",
+        message: "Sensitive log payload",
+        requestId: "dashboard-log-1",
+        ip: "203.0.113.5",
+        userAgent: "DashboardBrowser/1.0",
+        fingerprint: "fp_sensitive_dashboard_123",
+        tags: {
+          authorization: "Bearer raw-tag-token",
+        },
+        context: {
+          authorization: "Bearer raw-context-token",
+          nested: { cookie: "session=raw-cookie" },
+        },
+      })
+      .expect(201);
+
+    const response = await request(app)
+      .get(`/api/v1/logs/${created.body.id}?view=dashboard`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(response.body.context).toEqual({
+      authorization: "Bearer raw-context-token",
+      nested: { cookie: "session=raw-cookie" },
+    });
+    expect(response.body.tags).toEqual({
+      authorization: "Bearer raw-tag-token",
+    });
+    expect(response.body.ip).toBe("203.0.113.5");
+    expect(response.body.userAgent).toBe("DashboardBrowser/1.0");
+    expect(response.body.fingerprint).toBe("fp_sensitive_dashboard_123");
+    expect(response.body).not.toHaveProperty("ipMasked");
+    expect(response.body).not.toHaveProperty("fingerprintMasked");
+  });
+
   test("counts returns aggregate totals for a galaxy", async () => {
     const userBLogin = await login(userB.email);
     const response = await request(app)
@@ -409,6 +452,106 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     );
     expect(response.body.systems).toBeGreaterThan(0);
     expect(response.body.stars).toBeGreaterThan(0);
+  });
+
+  test("admin traffic analytics aggregates stored page view metrics", async () => {
+    await infra.db.query(
+      `
+        INSERT INTO metrics.performance_metrics
+          (metric_name, metric_type, source, duration_ms, success, request_id, tags, context, occurred_at)
+        VALUES
+          (
+            'traffic.page_view',
+            'http',
+            'frontend.web',
+            120,
+            true,
+            'traffic-1',
+            '{"externalReferrer": true}'::jsonb,
+            '{"pathname":"/admin/dashboard","fullPath":"/admin/dashboard?tab=traffic","sessionId":"sess-a","referrerHost":"google.com","viewport":{"width":1440,"height":900}}'::jsonb,
+            '2026-03-08T10:00:00.000Z'
+          ),
+          (
+            'traffic.page_view',
+            'http',
+            'frontend.web',
+            60,
+            true,
+            'traffic-2',
+            '{}'::jsonb,
+            '{"fullPath":"/admin/dashboard?tab=traffic","sessionId":"sess-a"}'::jsonb,
+            '2026-03-08T12:00:00.000Z'
+          ),
+          (
+            'traffic.page_view',
+            'http',
+            'frontend.web',
+            30,
+            true,
+            'traffic-3',
+            '{"pathname":"/from-tag"}'::jsonb,
+            '{"sessionId":"sess-b"}'::jsonb,
+            '2026-03-10T09:00:00.000Z'
+          ),
+          (
+            'http.request.duration',
+            'http',
+            'express',
+            10,
+            true,
+            'other-metric',
+            '{}'::jsonb,
+            '{}'::jsonb,
+            '2026-03-08T09:00:00.000Z'
+          )
+      `,
+    );
+
+    const adminLogin = await login(admin.email);
+    const response = await request(app)
+      .get(
+        "/api/v1/metrics/performance/traffic?from=2026-03-08T00:00:00.000Z&to=2026-03-10T23:59:59.999Z&limitRecent=5&limitRoutes=5&limitReferrers=5",
+      )
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(response.body.overview).toEqual({
+      pageViews: 3,
+      uniqueSessions: 2,
+      trackedRoutes: 3,
+      externalReferrals: 1,
+    });
+    expect(response.body.viewsByDay).toEqual([
+      { date: "2026-03-08", views: 2 },
+      { date: "2026-03-09", views: 0 },
+      { date: "2026-03-10", views: 1 },
+    ]);
+    expect(response.body.routes).toEqual([
+      expect.objectContaining({
+        path: "/admin/dashboard?tab=traffic",
+        views: 1,
+        uniqueSessions: 1,
+      }),
+      expect.objectContaining({
+        path: "/admin/dashboard",
+        views: 1,
+        uniqueSessions: 1,
+      }),
+      expect.objectContaining({
+        path: "/from-tag",
+        views: 1,
+        uniqueSessions: 1,
+      }),
+    ]);
+    expect(response.body.referrers).toEqual([{ referrer: "google.com", views: 1 }]);
+    expect(response.body.recentViews[0]).toEqual(
+      expect.objectContaining({
+        path: null,
+        fullPath: null,
+        sessionId: "sess-b",
+        durationMs: 30,
+      }),
+    );
   });
 
   test("global counts returns total procedural entities for admin", async () => {

@@ -1,6 +1,7 @@
 import { MetricCacheService } from "../../app/app-services/metrics/MetricCache.service";
-import { IMetric } from "../../app/interfaces/Metric.port";
+import { IMetric, TrafficAnalytics, TrafficPageViewRecord } from "../../app/interfaces/Metric.port";
 import { TrackMetric } from "../../app/use-cases/commands/metrics/TrackMetric.command";
+import { TrafficAnalyticsQueryService } from "../../app/use-cases/queries/metrics/TrafficAnalytics.query";
 import { Metric } from "../../domain/aggregates/Metric";
 
 const assertDomainErrorCode = (fn: () => void, code: string) => {
@@ -105,5 +106,176 @@ describe("TrackMetric command", () => {
       nested: { token: "[redacted]" },
     });
     expect(cache.invalidateForMutation).toHaveBeenCalledWith(saved.id);
+  });
+});
+
+describe("TrafficAnalyticsQueryService", () => {
+  it("aggregates by day, route and unique session with zero-filled days", async () => {
+    const rows = [
+      {
+        id: "1",
+        durationMs: 40,
+        occurredAt: new Date("2026-03-08T10:00:00.000Z"),
+        context: {
+          pathname: "/admin/users",
+          fullPath: "/admin/users?page=1",
+          sessionId: "sess-1",
+          referrerHost: "google.com",
+          viewport: { width: 1440, height: 900 },
+        },
+        tags: { externalReferrer: true },
+      },
+      {
+        id: "2",
+        durationMs: 20,
+        occurredAt: new Date("2026-03-08T12:00:00.000Z"),
+        context: {
+          fullPath: "/admin/users?page=2",
+          sessionId: "sess-1",
+        },
+        tags: { pathname: "/fallback-tag-route", externalReferrer: false },
+      },
+      {
+        id: "3",
+        durationMs: 60,
+        occurredAt: new Date("2026-03-10T09:00:00.000Z"),
+        context: {
+          sessionId: "sess-2",
+        },
+        tags: {},
+      },
+    ];
+
+    const repo: Pick<IMetric, "listTrafficPageViews"> = {
+      listTrafficPageViews: jest.fn(async (): Promise<TrafficPageViewRecord[]> => rows as any),
+    };
+    const cache = {
+      getTrafficAnalytics: jest.fn(async (): Promise<TrafficAnalytics | null> => null),
+      setTrafficAnalytics: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as MetricCacheService;
+
+    const query = new TrafficAnalyticsQueryService(repo as IMetric, cache);
+    const result = await query.execute({
+      from: new Date("2026-03-08T00:00:00.000Z"),
+      to: new Date("2026-03-10T23:59:59.999Z"),
+      limitRoutes: 10,
+      limitRecent: 10,
+      limitReferrers: 10,
+    });
+
+    expect(result.overview).toEqual({
+      pageViews: 3,
+      uniqueSessions: 2,
+      trackedRoutes: 3,
+      externalReferrals: 1,
+    });
+    expect(result.viewsByDay).toEqual([
+      { date: "2026-03-08", views: 2 },
+      { date: "2026-03-09", views: 0 },
+      { date: "2026-03-10", views: 1 },
+    ]);
+    expect(result.routes).toEqual([
+      {
+        path: "/admin/users",
+        views: 1,
+        uniqueSessions: 1,
+        avgDurationMs: 40,
+      },
+      {
+        path: "/admin/users?page=2",
+        views: 1,
+        uniqueSessions: 1,
+        avgDurationMs: 20,
+      },
+      {
+        path: "unknown",
+        views: 1,
+        uniqueSessions: 1,
+        avgDurationMs: 60,
+      },
+    ]);
+    expect(result.referrers).toEqual([{ referrer: "google.com", views: 1 }]);
+    expect(result.recentViews[0]).toEqual(
+      expect.objectContaining({
+        id: "3",
+        path: null,
+        fullPath: null,
+        sessionId: "sess-2",
+      }),
+    );
+  });
+
+  it("uses route priority pathname > fullPath > tags.pathname", async () => {
+    const rows = [
+      {
+        id: "1",
+        durationMs: 10,
+        occurredAt: new Date("2026-03-08T10:00:00.000Z"),
+        context: { pathname: "/first", fullPath: "/second" },
+        tags: { pathname: "/third" },
+      },
+      {
+        id: "2",
+        durationMs: 10,
+        occurredAt: new Date("2026-03-08T11:00:00.000Z"),
+        context: { fullPath: "/second" },
+        tags: { pathname: "/third" },
+      },
+      {
+        id: "3",
+        durationMs: 10,
+        occurredAt: new Date("2026-03-08T12:00:00.000Z"),
+        context: {},
+        tags: { pathname: "/third" },
+      },
+    ];
+
+    const repo: Pick<IMetric, "listTrafficPageViews"> = {
+      listTrafficPageViews: jest.fn(async (): Promise<TrafficPageViewRecord[]> => rows as any),
+    };
+    const cache = {
+      getTrafficAnalytics: jest.fn(async (): Promise<TrafficAnalytics | null> => null),
+      setTrafficAnalytics: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as MetricCacheService;
+
+    const query = new TrafficAnalyticsQueryService(repo as IMetric, cache);
+    const result = await query.execute({
+      from: new Date("2026-03-08T00:00:00.000Z"),
+      to: new Date("2026-03-08T23:59:59.999Z"),
+    });
+
+    expect(result.routes.map((row) => row.path)).toEqual(["/first", "/second", "/third"]);
+  });
+
+  it("returns cached traffic analytics when available", async () => {
+    const cached: TrafficAnalytics = {
+      overview: {
+        pageViews: 1,
+        uniqueSessions: 1,
+        trackedRoutes: 1,
+        externalReferrals: 0,
+      },
+      viewsByDay: [{ date: "2026-03-08", views: 1 }],
+      routes: [{ path: "/cached", views: 1, uniqueSessions: 1, avgDurationMs: 12 }],
+      referrers: [],
+      recentViews: [],
+    };
+
+    const repo: Pick<IMetric, "listTrafficPageViews"> = {
+      listTrafficPageViews: jest.fn(async (): Promise<TrafficPageViewRecord[]> => []),
+    };
+    const cache = {
+      getTrafficAnalytics: jest.fn(async (): Promise<TrafficAnalytics | null> => cached),
+      setTrafficAnalytics: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as MetricCacheService;
+
+    const query = new TrafficAnalyticsQueryService(repo as IMetric, cache);
+    const result = await query.execute({
+      from: new Date("2026-03-08T00:00:00.000Z"),
+      to: new Date("2026-03-08T23:59:59.999Z"),
+    });
+
+    expect(result).toEqual(cached);
+    expect(repo.listTrafficPageViews).not.toHaveBeenCalled();
   });
 });

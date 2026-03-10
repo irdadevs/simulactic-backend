@@ -1,10 +1,17 @@
 import { ICache } from "../../interfaces/Cache.port";
-import { DashboardQuery, ListMetricsQuery, MetricsDashboard } from "../../interfaces/Metric.port";
+import {
+  DashboardQuery,
+  ListMetricsQuery,
+  MetricsDashboard,
+  TrafficAnalytics,
+  TrafficAnalyticsQuery,
+} from "../../interfaces/Metric.port";
 import { Metric } from "../../../domain/aggregates/Metric";
 import {
   CachedDashboard,
   CachedListMetricsResult,
   CachedMetric,
+  CachedTrafficAnalytics,
   METRIC_CACHE_POLICY,
   MetricCacheKeys,
   deserializeDashboardFromCache,
@@ -80,11 +87,33 @@ export class MetricCacheService {
     }
   }
 
+  async getTrafficAnalytics(query: TrafficAnalyticsQuery): Promise<TrafficAnalytics | null> {
+    try {
+      const cached = await this.cache.get<CachedTrafficAnalytics>(MetricCacheKeys.traffic(query));
+      return cached ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setTrafficAnalytics(query: TrafficAnalyticsQuery, traffic: TrafficAnalytics): Promise<void> {
+    try {
+      await this.cache.set(
+        MetricCacheKeys.traffic(query),
+        traffic,
+        METRIC_CACHE_POLICY.metricsTrafficTtl,
+      );
+    } catch {
+      return;
+    }
+  }
+
   async invalidateForMutation(id: string): Promise<void> {
     try {
       await this.cache.del(MetricCacheKeys.byId(id));
       await this.cache.delByPrefix(MetricCacheKeys.listPrefix());
       await this.cache.delByPrefix(MetricCacheKeys.dashboardPrefix());
+      await this.cache.delByPrefix(MetricCacheKeys.trafficPrefix());
     } catch {
       return;
     }

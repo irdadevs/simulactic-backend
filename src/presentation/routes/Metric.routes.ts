@@ -29,6 +29,12 @@ export function MetricRoutes(
     },
     {
       method: "get",
+      path: "/performance/traffic",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.traffic,
+    },
+    {
+      method: "get",
       path: "/performance/:id",
       before: [auth.requireAuth(), auth.requireRoles("Admin")],
       handler: ctrl.findById,

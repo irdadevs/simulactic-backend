@@ -107,6 +107,7 @@ import { TrackMetric } from "../../app/use-cases/commands/metrics/TrackMetric.co
 import { FindMetric } from "../../app/use-cases/queries/metrics/FindMetric.query";
 import { ListMetrics } from "../../app/use-cases/queries/metrics/ListMetrics.query";
 import { MetricsDashboardQuery } from "../../app/use-cases/queries/metrics/MetricsDashboard.query";
+import { TrafficAnalyticsQueryService } from "../../app/use-cases/queries/metrics/TrafficAnalytics.query";
 import { CreateDonationCheckout } from "../../app/use-cases/commands/donations/CreateDonationCheckout.command";
 import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
@@ -226,6 +227,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const findMetric = new FindMetric(metricRepo, metricCache);
   const listMetrics = new ListMetrics(metricRepo, metricCache);
   const metricsDashboard = new MetricsDashboardQuery(metricRepo, metricCache);
+  const trafficAnalytics = new TrafficAnalyticsQueryService(metricRepo, metricCache);
   const createDonationCheckout = new CreateDonationCheckout(
     donationRepo,
     paymentGateway,
@@ -488,6 +490,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     findMetric,
     listMetrics,
     metricsDashboard,
+    trafficAnalytics,
   );
   const donationController = new DonationController(
     createDonationCheckout,

@@ -35,6 +35,44 @@ export type DashboardQuery = {
   topLimit?: number;
 };
 
+export type TrafficAnalyticsQuery = {
+  from: Date;
+  to: Date;
+  limitRecent?: number;
+  limitRoutes?: number;
+  limitReferrers?: number;
+};
+
+export type TrafficPageViewRecord = {
+  id: string;
+  durationMs: number;
+  occurredAt: Date;
+  tags: Record<string, unknown>;
+  context: Record<string, unknown>;
+};
+
+export type TrafficAnalytics = {
+  overview: {
+    pageViews: number;
+    uniqueSessions: number;
+    trackedRoutes: number;
+    externalReferrals: number;
+  };
+  viewsByDay: Array<{ date: string; views: number }>;
+  routes: Array<{ path: string; views: number; uniqueSessions: number; avgDurationMs: number }>;
+  referrers: Array<{ referrer: string; views: number }>;
+  recentViews: Array<{
+    id: string;
+    occurredAt: string;
+    path: string | null;
+    fullPath: string | null;
+    referrerHost: string | null;
+    sessionId: string | null;
+    viewport: { width: number; height: number } | null;
+    durationMs: number;
+  }>;
+};
+
 export type DashboardSummary = {
   total: number;
   avgDurationMs: number;
@@ -85,4 +123,5 @@ export interface IMetric {
   findById(id: string): Promise<Metric | null>;
   list(query: ListMetricsQuery): Promise<{ rows: Metric[]; total: number }>;
   dashboard(query: DashboardQuery): Promise<MetricsDashboard>;
+  listTrafficPageViews(query: TrafficAnalyticsQuery): Promise<TrafficPageViewRecord[]>;
 }

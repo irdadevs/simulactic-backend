@@ -433,6 +433,23 @@ export function buildTestApi(): {
         recentFailures: [],
       })),
     },
+    trafficAnalytics: {
+      execute: jest.fn(async () => ({
+        overview: {
+          pageViews: 3,
+          uniqueSessions: 2,
+          trackedRoutes: 2,
+          externalReferrals: 1,
+        },
+        viewsByDay: [{ date: "2026-03-10", views: 3 }],
+        routes: [
+          { path: "/admin", views: 2, uniqueSessions: 2, avgDurationMs: 30 },
+          { path: "unknown", views: 1, uniqueSessions: 0, avgDurationMs: 10 },
+        ],
+        referrers: [{ referrer: "google.com", views: 1 }],
+        recentViews: [],
+      })),
+    },
     createDonationCheckout: {
       execute: jest.fn(async () => ({
         checkoutUrl: "https://checkout.stripe.com/pay/mock",
@@ -582,6 +599,7 @@ export function buildTestApi(): {
     mocks.findMetric as any,
     mocks.listMetrics as any,
     mocks.dashboardMetrics as any,
+    mocks.trafficAnalytics as any,
   );
   const donationController = new DonationController(
     mocks.createDonationCheckout as any,
