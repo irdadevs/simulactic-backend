@@ -40,4 +40,7 @@ export interface ILog {
   findById(id: string): Promise<Log | null>;
   list(query: ListLogsQuery): Promise<{ rows: Log[]; total: number }>;
   resolve(id: string, byUserId: string): Promise<Log>;
+  reopen(id: string): Promise<Log>;
+  setAdminNote(id: string, note: string, byUserId: string): Promise<Log>;
+  clearAdminNote(id: string): Promise<Log>;
 }

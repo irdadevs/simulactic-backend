@@ -107,7 +107,10 @@ import { ChangeAsteroidOrbital } from "./app/use-cases/commands/asteroids/Change
 import LogRepo from "./infra/repos/Log.repository";
 import { LogCacheService } from "./app/app-services/logs/LogCache.service";
 import { CreateLog } from "./app/use-cases/commands/logs/CreateLog.command";
+import { ClearAdminNote } from "./app/use-cases/commands/logs/ClearAdminNote.command";
+import { ReopenLog } from "./app/use-cases/commands/logs/ReopenLog.command";
 import { ResolveLog } from "./app/use-cases/commands/logs/ResolveLog.command";
+import { SetAdminNote } from "./app/use-cases/commands/logs/SetAdminNote.command";
 import { FindLog } from "./app/use-cases/queries/logs/FindLog.query";
 import { ListLogs } from "./app/use-cases/queries/logs/ListLogs.query";
 import MetricRepo from "./infra/repos/Metric.repository";
@@ -487,6 +490,9 @@ async function start(): Promise<void> {
     );
     const createLog = new CreateLog(logRepo, logCache);
     const resolveLog = new ResolveLog(logRepo, logCache);
+    const reopenLog = new ReopenLog(logRepo, logCache);
+    const setAdminNote = new SetAdminNote(logRepo, logCache);
+    const clearAdminNote = new ClearAdminNote(logRepo, logCache);
     const findLog = new FindLog(logRepo, logCache);
     const listLogs = new ListLogs(logRepo, logCache);
     // App-services
@@ -580,7 +586,15 @@ async function start(): Promise<void> {
       findSystem,
       findGalaxy,
     );
-    const logController = new LogController(createLog, resolveLog, findLog, listLogs);
+    const logController = new LogController(
+      createLog,
+      resolveLog,
+      reopenLog,
+      setAdminNote,
+      clearAdminNote,
+      findLog,
+      listLogs,
+    );
     const metricController = new MetricController(
       trackMetric,
       findMetric,

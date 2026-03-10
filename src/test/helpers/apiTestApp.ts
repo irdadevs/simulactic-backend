@@ -357,6 +357,9 @@ export function buildTestApi(): {
       })),
     },
     resolveLog: { execute: jest.fn(async () => undefined) },
+    reopenLog: { execute: jest.fn(async () => undefined) },
+    setAdminNote: { execute: jest.fn(async () => undefined) },
+    clearAdminNote: { execute: jest.fn(async () => undefined) },
     findLog: {
       byId: jest.fn(async (id: string) => ({
         id,
@@ -380,6 +383,9 @@ export function buildTestApi(): {
         occurredAt: new Date(),
         resolvedAt: null,
         resolvedBy: null,
+        adminNote: null,
+        adminNoteUpdatedAt: null,
+        adminNoteUpdatedBy: null,
       })),
     },
     listLogs: {
@@ -565,6 +571,9 @@ export function buildTestApi(): {
   const logController = new LogController(
     mocks.createLog as any,
     mocks.resolveLog as any,
+    mocks.reopenLog as any,
+    mocks.setAdminNote as any,
+    mocks.clearAdminNote as any,
     mocks.findLog as any,
     mocks.listLogs as any,
   );

@@ -1,11 +1,15 @@
 import { Request, Response } from "express";
 import { CreateLog } from "../../app/use-cases/commands/logs/CreateLog.command";
+import { ClearAdminNote } from "../../app/use-cases/commands/logs/ClearAdminNote.command";
+import { ReopenLog } from "../../app/use-cases/commands/logs/ReopenLog.command";
 import { ResolveLog } from "../../app/use-cases/commands/logs/ResolveLog.command";
+import { SetAdminNote } from "../../app/use-cases/commands/logs/SetAdminNote.command";
 import { FindLog } from "../../app/use-cases/queries/logs/FindLog.query";
 import { ListLogs } from "../../app/use-cases/queries/logs/ListLogs.query";
 import { CreateLogDTO } from "../security/logs/CreateLog.dto";
 import { FindLogByIdDTO } from "../security/logs/FindLogById.dto";
 import { ListLogsDTO } from "../security/logs/ListLogs.dto";
+import { SetAdminNoteDTO } from "../security/logs/SetAdminNote.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
 import { presentLog, presentLogAdmin } from "../presenters/Aggregate.presenter";
@@ -14,6 +18,9 @@ export class LogController {
   constructor(
     private readonly createLog: CreateLog,
     private readonly resolveLog: ResolveLog,
+    private readonly reopenLog: ReopenLog,
+    private readonly setAdminNote: SetAdminNote,
+    private readonly clearAdminNote: ClearAdminNote,
     private readonly findLog: FindLog,
     private readonly listLogs: ListLogs,
   ) {}
@@ -57,6 +64,41 @@ export class LogController {
         return res.status(200).json(presentLogAdmin(log));
       }
       return res.status(200).json(presentLog(log));
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public reopen = async (req: Request, res: Response) => {
+    try {
+      const parsed = FindLogByIdDTO.safeParse(req.params);
+      if (!parsed.success) return invalidBody(res, parsed.error);
+      await this.reopenLog.execute(parsed.data.id);
+      return res.status(204).send();
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public upsertAdminNote = async (req: Request, res: Response) => {
+    try {
+      const parsedParams = FindLogByIdDTO.safeParse(req.params);
+      if (!parsedParams.success) return invalidBody(res, parsedParams.error);
+      const parsedBody = SetAdminNoteDTO.safeParse(req.body);
+      if (!parsedBody.success) return invalidBody(res, parsedBody.error);
+      await this.setAdminNote.execute(parsedParams.data.id, parsedBody.data.note, req.auth.userId);
+      return res.status(204).send();
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public deleteAdminNote = async (req: Request, res: Response) => {
+    try {
+      const parsed = FindLogByIdDTO.safeParse(req.params);
+      if (!parsed.success) return invalidBody(res, parsed.error);
+      await this.clearAdminNote.execute(parsed.data.id);
+      return res.status(204).send();
     } catch (err: unknown) {
       return errorHandler(err, res);
     }
