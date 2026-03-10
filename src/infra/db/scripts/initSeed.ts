@@ -70,7 +70,6 @@ async function main() {
         ('months', 4, 'Monthly Captain', '12 months', 12),
         ('months', 5, 'Monthly Admiral', '24 months', 24),
         ('months', 6, 'Monthly Sovereign', '36 months', 36),
-        ('months', 7, 'Monthly Sovereign', '36 months', 48)
       ON CONFLICT (branch, level) DO UPDATE SET
         name = EXCLUDED.name,
         quantity_label = EXCLUDED.quantity_label,
