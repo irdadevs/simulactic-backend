@@ -1,5 +1,7 @@
 import request from "supertest";
 import { Express as ExpressApp } from "express";
+import { Planet } from "../../domain/aggregates/Planet";
+import PlanetRepo from "../../infra/repos/Planet.repository";
 import {
   createRealInfraContext,
   RealInfraContext,
@@ -259,6 +261,31 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(Array.isArray(response.body.systems[0].stars)).toBe(true);
     expect(Array.isArray(response.body.systems[0].planets)).toBe(true);
     expect(Array.isArray(response.body.systems[0].asteroids)).toBe(true);
+  });
+
+  test('persists gas planets with biome "none"', async () => {
+    const repo = new PlanetRepo(infra.db);
+    const gasPlanet = Planet.create({
+      systemId: systemBId,
+      name: "GasSeedB",
+      type: "gas",
+      size: "giant",
+      orbital: 7,
+      biome: "desert",
+    });
+
+    const saved = await repo.create(gasPlanet);
+    expect(saved.biome).toBe("none");
+
+    const userBLogin = await login(userB.email);
+    const response = await request(app)
+      .get(`/api/v1/planets/${saved.id}`)
+      .set("Cookie", userBLogin.cookies)
+      .expect(200);
+
+    expect(response.body.id).toBe(saved.id);
+    expect(response.body.type).toBe("gas");
+    expect(response.body.biome).toBe("none");
   });
 
   test("counts returns aggregate totals for a galaxy", async () => {

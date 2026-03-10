@@ -7,9 +7,11 @@ import {
 import { Galaxy, GalaxyShapeValue } from "../../../domain/aggregates/Galaxy";
 import { Moon, MoonSize } from "../../../domain/aggregates/Moon";
 import {
+  ALLOWED_PLANET_BIOMES,
   Planet,
   PlanetBiome,
   PlanetSize,
+  PLANET_BIOMES_BY_TEMPERATURE,
   PlanetType,
 } from "../../../domain/aggregates/Planet";
 import { Star, StarType, sampleStarType } from "../../../domain/aggregates/Star";
@@ -60,15 +62,6 @@ const PROCEDURAL_ASTEROID_TYPES: AsteroidType[] = ["single", "cluster"];
 const PROCEDURAL_ASTEROID_SIZES: AsteroidSize[] = ["small", "medium", "big", "massive"];
 const PROCEDURAL_PLANET_TYPES: PlanetType[] = ["solid", "gas"];
 const PROCEDURAL_PLANET_SIZES: PlanetSize[] = ["proto", "dwarf", "medium", "giant", "supergiant"];
-const PROCEDURAL_PLANET_BIOMES: PlanetBiome[] = [
-  "temperate",
-  "desert",
-  "ocean",
-  "ice",
-  "toxic",
-  "radioactive",
-  "crystal",
-];
 const PROCEDURAL_MOON_SIZES: MoonSize[] = ["dwarf", "medium", "giant"];
 
 export class GalaxyLifecycleService {
@@ -205,9 +198,29 @@ export class GalaxyLifecycleService {
     return PROCEDURAL_PLANET_SIZES[idx];
   }
 
-  private randomPlanetBiome(): PlanetBiome {
-    const idx = this.randomInt(0, PROCEDURAL_PLANET_BIOMES.length - 1);
-    return PROCEDURAL_PLANET_BIOMES[idx];
+  private planetBiomePoolForOrbital(orbital: number, starter: number): readonly PlanetBiome[] {
+    const span = Math.max(1, 8 - starter);
+    const normalized = (orbital - starter) / span;
+
+    if (normalized <= 1 / 3) {
+      return PLANET_BIOMES_BY_TEMPERATURE.warm;
+    }
+
+    if (normalized <= 2 / 3) {
+      return PLANET_BIOMES_BY_TEMPERATURE.temperate;
+    }
+
+    return PLANET_BIOMES_BY_TEMPERATURE.cold;
+  }
+
+  private randomPlanetBiome(type: PlanetType, orbital: number, starter: number): PlanetBiome {
+    if (type === "gas") {
+      return "none";
+    }
+
+    const pool = this.planetBiomePoolForOrbital(orbital, starter);
+    const idx = this.randomInt(0, pool.length - 1);
+    return pool[idx] ?? ALLOWED_PLANET_BIOMES[ALLOWED_PLANET_BIOMES.length - 1];
   }
 
   private randomMoonSize(): MoonSize {
@@ -251,11 +264,12 @@ export class GalaxyLifecycleService {
         const orbital = starter + p;
         if (orbital > 8) break;
 
+        const type = this.randomPlanetType();
         const planet = Planet.create({
           systemId: system.id,
-          type: this.randomPlanetType(),
+          type,
           size: this.randomPlanetSize(),
-          biome: this.randomPlanetBiome(),
+          biome: this.randomPlanetBiome(type, orbital, starter),
           orbital,
         });
         await repos.planet.save(planet);
