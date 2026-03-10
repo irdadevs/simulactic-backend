@@ -179,4 +179,7 @@ export const presentLogAdmin = (log: Log) => ({
   ipMasked: maskIp(log.ip),
   userAgent: log.userAgent,
   fingerprintMasked: maskIdentifier(log.fingerprint),
+  adminNote: log.adminNote,
+  adminNoteUpdatedAt: toIso(log.adminNoteUpdatedAt),
+  adminNoteUpdatedBy: log.adminNoteUpdatedBy,
 });

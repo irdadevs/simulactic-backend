@@ -33,5 +33,23 @@ export function LogRoutes(
       before: [auth.requireAuth(), auth.requireRoles("Admin")],
       handler: ctrl.resolve,
     },
+    {
+      method: "patch",
+      path: "/:id/reopen",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.reopen,
+    },
+    {
+      method: "patch",
+      path: "/:id/admin-note",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.upsertAdminNote,
+    },
+    {
+      method: "delete",
+      path: "/:id/admin-note",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.deleteAdminNote,
+    },
   ];
 }

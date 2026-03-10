@@ -27,6 +27,11 @@ export default class LogRepo implements ILog {
       occurredAt: new Date(row.occurred_at),
       resolvedAt: row.resolved_at ? new Date(row.resolved_at) : null,
       resolvedBy: row.resolved_by ?? null,
+      adminNote: row.admin_note ?? null,
+      adminNoteUpdatedAt: row.admin_note_updated_at
+        ? new Date(row.admin_note_updated_at)
+        : null,
+      adminNoteUpdatedBy: row.admin_note_updated_by ?? null,
     });
   }
 
@@ -51,10 +56,13 @@ export default class LogRepo implements ILog {
         tags,
         occurred_at,
         resolved_at,
-        resolved_by
+        resolved_by,
+        admin_note,
+        admin_note_updated_at,
+        admin_note_updated_by
       )
       VALUES (
-        $1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+        $1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
       )
       RETURNING id
       `,
@@ -76,6 +84,9 @@ export default class LogRepo implements ILog {
         json.occurredAt,
         json.resolvedAt,
         json.resolvedBy,
+        json.adminNote,
+        json.adminNoteUpdatedAt,
+        json.adminNoteUpdatedBy,
       ],
     );
 
@@ -108,7 +119,10 @@ export default class LogRepo implements ILog {
         tags,
         occurred_at,
         resolved_at,
-        resolved_by
+        resolved_by,
+        admin_note,
+        admin_note_updated_at,
+        admin_note_updated_by
       FROM logs.error_log
       WHERE id = $1
       LIMIT 1
@@ -163,7 +177,10 @@ export default class LogRepo implements ILog {
         tags,
         occurred_at,
         resolved_at,
-        resolved_by
+        resolved_by,
+        admin_note,
+        admin_note_updated_at,
+        admin_note_updated_by
       `,
       orderMap: {
         occurredAt: "occurred_at",
@@ -190,6 +207,69 @@ export default class LogRepo implements ILog {
       WHERE id = $1
       `,
       [id, byUserId],
+    );
+
+    if (res.rowCount === 0) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", { sourceType: "log", id });
+    }
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", { sourceType: "log", id });
+    }
+    return updated;
+  }
+
+  async reopen(id: string): Promise<Log> {
+    const res = await this.db.query(
+      `
+      UPDATE logs.error_log
+      SET resolved_at = NULL, resolved_by = NULL
+      WHERE id = $1
+      `,
+      [id],
+    );
+
+    if (res.rowCount === 0) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", { sourceType: "log", id });
+    }
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", { sourceType: "log", id });
+    }
+    return updated;
+  }
+
+  async setAdminNote(id: string, note: string, byUserId: string): Promise<Log> {
+    const res = await this.db.query(
+      `
+      UPDATE logs.error_log
+      SET admin_note = $2, admin_note_updated_at = now_utc(), admin_note_updated_by = $3
+      WHERE id = $1
+      `,
+      [id, note, byUserId],
+    );
+
+    if (res.rowCount === 0) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", { sourceType: "log", id });
+    }
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", { sourceType: "log", id });
+    }
+    return updated;
+  }
+
+  async clearAdminNote(id: string): Promise<Log> {
+    const res = await this.db.query(
+      `
+      UPDATE logs.error_log
+      SET admin_note = NULL, admin_note_updated_at = NULL, admin_note_updated_by = NULL
+      WHERE id = $1
+      `,
+      [id],
     );
 
     if (res.rowCount === 0) {

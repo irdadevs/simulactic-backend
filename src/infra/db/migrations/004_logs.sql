@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS logs.error_log (
   archived_at timestamptz,
   resolved_at timestamptz,
   resolved_by uuid REFERENCES auth.users(id),
+  admin_note text,
+  admin_note_updated_at timestamptz,
+  admin_note_updated_by uuid REFERENCES auth.users(id),
   occurred_at timestamptz NOT NULL DEFAULT now_utc ()
 );
 

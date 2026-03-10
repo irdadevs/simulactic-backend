@@ -21,6 +21,9 @@ export type CachedLog = {
   occurredAt: string;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  adminNote: string | null;
+  adminNoteUpdatedAt: string | null;
+  adminNoteUpdatedBy: string | null;
 };
 
 export type CachedListLogsResult = {
@@ -61,6 +64,7 @@ export function serializeLogForCache(log: Log): CachedLog {
     ...json,
     occurredAt: json.occurredAt.toISOString(),
     resolvedAt: json.resolvedAt ? json.resolvedAt.toISOString() : null,
+    adminNoteUpdatedAt: json.adminNoteUpdatedAt ? json.adminNoteUpdatedAt.toISOString() : null,
   };
 }
 
@@ -84,5 +88,8 @@ export function deserializeLogFromCache(cached: CachedLog): Log {
     occurredAt: new Date(cached.occurredAt),
     resolvedAt: cached.resolvedAt ? new Date(cached.resolvedAt) : null,
     resolvedBy: cached.resolvedBy,
+    adminNote: cached.adminNote,
+    adminNoteUpdatedAt: cached.adminNoteUpdatedAt ? new Date(cached.adminNoteUpdatedAt) : null,
+    adminNoteUpdatedBy: cached.adminNoteUpdatedBy,
   });
 }

@@ -288,6 +288,109 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(response.body.biome).toBe("none");
   });
 
+  test("admin can reopen resolved non-info logs", async () => {
+    const adminLogin = await login(admin.email);
+    const created = await request(app)
+      .post("/api/v1/logs")
+      .set("Cookie", adminLogin.cookies)
+      .send({
+        source: "ops",
+        level: "warn",
+        category: "application",
+        message: "Log to reopen",
+      })
+      .expect(201);
+
+    const logId = String(created.body.id);
+
+    await request(app)
+      .patch(`/api/v1/logs/${logId}/resolve`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(204);
+
+    await request(app)
+      .patch(`/api/v1/logs/${logId}/reopen`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(204);
+
+    const fetched = await request(app)
+      .get(`/api/v1/logs/${logId}?view=dashboard`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(fetched.body.id).toBe(logId);
+    expect(fetched.body.level).toBe("warn");
+    expect(fetched.body.resolvedAt).toBeNull();
+    expect(fetched.body.resolvedBy).toBeNull();
+    expect(fetched.body.adminNote).toBeNull();
+    expect(fetched.body.adminNoteUpdatedAt).toBeNull();
+    expect(fetched.body.adminNoteUpdatedBy).toBeNull();
+  });
+
+  test("admin cannot reopen info logs", async () => {
+    const adminLogin = await login(admin.email);
+    const created = await request(app)
+      .post("/api/v1/logs")
+      .set("Cookie", adminLogin.cookies)
+      .send({
+        source: "audit",
+        level: "info",
+        category: "audit",
+        message: "Info log stays closed",
+      })
+      .expect(201);
+
+    await request(app)
+      .patch(`/api/v1/logs/${created.body.id}/reopen`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(422);
+  });
+
+  test("admin can set and clear a log note", async () => {
+    const adminLogin = await login(admin.email);
+    const created = await request(app)
+      .post("/api/v1/logs")
+      .set("Cookie", adminLogin.cookies)
+      .send({
+        source: "ops",
+        level: "error",
+        category: "application",
+        message: "Log note lifecycle",
+      })
+      .expect(201);
+
+    const logId = String(created.body.id);
+
+    await request(app)
+      .patch(`/api/v1/logs/${logId}/admin-note`)
+      .set("Cookie", adminLogin.cookies)
+      .send({ note: "Assigned to on-call admin" })
+      .expect(204);
+
+    const withNote = await request(app)
+      .get(`/api/v1/logs/${logId}?view=dashboard`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(withNote.body.adminNote).toBe("Assigned to on-call admin");
+    expect(withNote.body.adminNoteUpdatedAt).not.toBeNull();
+    expect(withNote.body.adminNoteUpdatedBy).toBe(admin.id);
+
+    await request(app)
+      .delete(`/api/v1/logs/${logId}/admin-note`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(204);
+
+    const cleared = await request(app)
+      .get(`/api/v1/logs/${logId}?view=dashboard`)
+      .set("Cookie", adminLogin.cookies)
+      .expect(200);
+
+    expect(cleared.body.adminNote).toBeNull();
+    expect(cleared.body.adminNoteUpdatedAt).toBeNull();
+    expect(cleared.body.adminNoteUpdatedBy).toBeNull();
+  });
+
   test("counts returns aggregate totals for a galaxy", async () => {
     const userBLogin = await login(userB.email);
     const response = await request(app)

@@ -159,6 +159,38 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.resolveLog.execute).toHaveBeenCalledWith("10", IDS.admin);
   });
 
+  test("allows admin to reopen logs", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .patch("/api/v1/logs/10/reopen")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(204);
+    expect(mocks.reopenLog.execute).toHaveBeenCalledWith("10");
+  });
+
+  test("allows admin to set a log note", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .patch("/api/v1/logs/10/admin-note")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .send({ note: "Investigating root cause" })
+      .expect(204);
+    expect(mocks.setAdminNote.execute).toHaveBeenCalledWith(
+      "10",
+      "Investigating root cause",
+      IDS.admin,
+    );
+  });
+
+  test("allows admin to clear a log note", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .delete("/api/v1/logs/10/admin-note")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(204);
+    expect(mocks.clearAdminNote.execute).toHaveBeenCalledWith("10");
+  });
+
   test("allows authenticated users to create donation checkout sessions", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)

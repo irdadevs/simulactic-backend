@@ -1,6 +1,9 @@
 import { LogCacheService } from "../../app/app-services/logs/LogCache.service";
 import { ILog } from "../../app/interfaces/Log.port";
+import { ClearAdminNote } from "../../app/use-cases/commands/logs/ClearAdminNote.command";
 import { CreateLog } from "../../app/use-cases/commands/logs/CreateLog.command";
+import { ReopenLog } from "../../app/use-cases/commands/logs/ReopenLog.command";
+import { SetAdminNote } from "../../app/use-cases/commands/logs/SetAdminNote.command";
 import { Log } from "../../domain/aggregates/Log";
 
 const assertDomainErrorCode = (fn: () => void, code: string) => {
@@ -50,6 +53,64 @@ describe("Log aggregate", () => {
     log.resolve("22222222-2222-4222-8222-222222222222", new Date("2025-01-01T00:00:00.000Z"));
     expect(log.resolvedBy).toBe("22222222-2222-4222-8222-222222222222");
     expect(log.resolvedAt?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
+  });
+
+  it("reopens non-info logs", () => {
+    const log = Log.create({
+      source: "service",
+      level: "warn",
+      category: "application",
+      message: "Something happened",
+      resolvedAt: new Date("2025-01-01T00:00:00.000Z"),
+      resolvedBy: "22222222-2222-4222-8222-222222222222",
+    });
+
+    log.reopen();
+
+    expect(log.resolvedAt).toBeNull();
+    expect(log.resolvedBy).toBeNull();
+  });
+
+  it("does not reopen info logs", () => {
+    assertDomainErrorCode(
+      () => {
+        const log = Log.create({
+          source: "service",
+          level: "info",
+          category: "audit",
+          message: "Already closed",
+          resolvedAt: new Date("2025-01-01T00:00:00.000Z"),
+        });
+
+        log.reopen();
+      },
+      "PRESENTATION.INVALID_FIELD",
+    );
+  });
+
+  it("stores and clears admin note metadata", () => {
+    const log = Log.create({
+      source: "service",
+      level: "warn",
+      category: "application",
+      message: "Something happened",
+    });
+
+    log.setAdminNote(
+      "Assigned to L2",
+      "22222222-2222-4222-8222-222222222222",
+      new Date("2025-01-01T00:00:00.000Z"),
+    );
+
+    expect(log.adminNote).toBe("Assigned to L2");
+    expect(log.adminNoteUpdatedBy).toBe("22222222-2222-4222-8222-222222222222");
+    expect(log.adminNoteUpdatedAt?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
+
+    log.clearAdminNote();
+
+    expect(log.adminNote).toBeNull();
+    expect(log.adminNoteUpdatedBy).toBeNull();
+    expect(log.adminNoteUpdatedAt).toBeNull();
   });
 
   it("throws on invalid source", () => {
@@ -138,5 +199,116 @@ describe("CreateLog command", () => {
     expect(result.level).toBe("info");
     expect(result.resolvedAt?.toISOString()).toBe("2026-03-08T10:00:00.000Z");
     expect(result.resolvedBy).toBeNull();
+  });
+});
+
+describe("ReopenLog command", () => {
+  it("reopens non-info logs and invalidates cache", async () => {
+    const log = Log.create({
+      id: "1",
+      source: "http",
+      level: "warn",
+      category: "security",
+      message: "Forbidden",
+      resolvedAt: new Date("2026-03-08T10:00:00.000Z"),
+      resolvedBy: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const repo: Pick<ILog, "findById" | "reopen"> = {
+      findById: jest.fn(async () => log),
+      reopen: jest.fn(async () => log),
+    };
+    const cache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as LogCacheService;
+
+    const command = new ReopenLog(repo as ILog, cache);
+    await command.execute("1");
+
+    expect(repo.reopen).toHaveBeenCalledWith("1");
+    expect(cache.invalidateForMutation).toHaveBeenCalledWith("1");
+  });
+
+  it("rejects reopening info logs", async () => {
+    const log = Log.create({
+      id: "1",
+      source: "http",
+      level: "info",
+      category: "audit",
+      message: "Already resolved",
+      resolvedAt: new Date("2026-03-08T10:00:00.000Z"),
+    });
+
+    const repo: Pick<ILog, "findById" | "reopen"> = {
+      findById: jest.fn(async () => log),
+      reopen: jest.fn(async () => log),
+    };
+    const cache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as LogCacheService;
+
+    const command = new ReopenLog(repo as ILog, cache);
+
+    await expect(command.execute("1")).rejects.toMatchObject({
+      code: "PRESENTATION.INVALID_FIELD",
+    });
+    expect(repo.reopen).not.toHaveBeenCalled();
+  });
+});
+
+describe("Admin log note commands", () => {
+  it("sets admin note and invalidates cache", async () => {
+    const log = Log.create({
+      id: "1",
+      source: "http",
+      level: "warn",
+      category: "security",
+      message: "Forbidden",
+    });
+
+    const repo: Pick<ILog, "findById" | "setAdminNote"> = {
+      findById: jest.fn(async () => log),
+      setAdminNote: jest.fn(async () => log),
+    };
+    const cache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as LogCacheService;
+
+    const command = new SetAdminNote(repo as ILog, cache);
+    await command.execute("1", "Assigned to SOC", "11111111-1111-4111-8111-111111111111");
+
+    expect(repo.setAdminNote).toHaveBeenCalledWith(
+      "1",
+      "Assigned to SOC",
+      "11111111-1111-4111-8111-111111111111",
+    );
+    expect(cache.invalidateForMutation).toHaveBeenCalledWith("1");
+  });
+
+  it("clears admin note and invalidates cache", async () => {
+    const log = Log.create({
+      id: "1",
+      source: "http",
+      level: "warn",
+      category: "security",
+      message: "Forbidden",
+      adminNote: "Assigned to SOC",
+      adminNoteUpdatedBy: "11111111-1111-4111-8111-111111111111",
+      adminNoteUpdatedAt: new Date("2026-03-10T10:00:00.000Z"),
+    });
+
+    const repo: Pick<ILog, "findById" | "clearAdminNote"> = {
+      findById: jest.fn(async () => log),
+      clearAdminNote: jest.fn(async () => log),
+    };
+    const cache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as LogCacheService;
+
+    const command = new ClearAdminNote(repo as ILog, cache);
+    await command.execute("1");
+
+    expect(repo.clearAdminNote).toHaveBeenCalledWith("1");
+    expect(cache.invalidateForMutation).toHaveBeenCalledWith("1");
   });
 });

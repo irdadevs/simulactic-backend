@@ -26,6 +26,9 @@ export type LogCreateProps = {
   occurredAt?: Date;
   resolvedAt?: Date | null;
   resolvedBy?: string | null;
+  adminNote?: string | null;
+  adminNoteUpdatedAt?: Date | null;
+  adminNoteUpdatedBy?: string | null;
 };
 
 export class LogSource {
@@ -80,6 +83,9 @@ export class Log {
     occurredAt: Date;
     resolvedAt: Date | null;
     resolvedBy: string | null;
+    adminNote: string | null;
+    adminNoteUpdatedAt: Date | null;
+    adminNoteUpdatedBy: string | null;
   }) {}
 
   static create(input: LogCreateProps): Log {
@@ -95,6 +101,9 @@ export class Log {
 
     const userId = input.userId ? Uuid.create(input.userId).toString() : null;
     const resolvedBy = input.resolvedBy ? Uuid.create(input.resolvedBy).toString() : null;
+    const adminNoteUpdatedBy = input.adminNoteUpdatedBy
+      ? Uuid.create(input.adminNoteUpdatedBy).toString()
+      : null;
 
     return new Log({
       id: input.id ?? "0",
@@ -115,6 +124,9 @@ export class Log {
       occurredAt: input.occurredAt ?? new Date(),
       resolvedAt: input.resolvedAt ?? null,
       resolvedBy,
+      adminNote: input.adminNote?.trim() || null,
+      adminNoteUpdatedAt: input.adminNoteUpdatedAt ?? null,
+      adminNoteUpdatedBy,
     });
   }
 
@@ -125,6 +137,35 @@ export class Log {
   resolve(byUserId: string, at: Date = new Date()): void {
     this.props.resolvedAt = at;
     this.props.resolvedBy = Uuid.create(byUserId).toString();
+  }
+
+  setAdminNote(note: string, byUserId: string, at: Date = new Date()): void {
+    const normalized = note.trim();
+    if (!normalized || normalized.length > 4000) {
+      throw ErrorFactory.presentation("PRESENTATION.INVALID_FIELD", { field: "adminNote" });
+    }
+
+    this.props.adminNote = normalized;
+    this.props.adminNoteUpdatedAt = at;
+    this.props.adminNoteUpdatedBy = Uuid.create(byUserId).toString();
+  }
+
+  clearAdminNote(): void {
+    this.props.adminNote = null;
+    this.props.adminNoteUpdatedAt = null;
+    this.props.adminNoteUpdatedBy = null;
+  }
+
+  canBeReopened(): boolean {
+    return this.props.level !== "info";
+  }
+
+  reopen(): void {
+    if (!this.canBeReopened()) {
+      throw ErrorFactory.presentation("PRESENTATION.INVALID_FIELD", { field: "reopen" });
+    }
+    this.props.resolvedAt = null;
+    this.props.resolvedBy = null;
   }
 
   get id(): string { return this.props.id; }
@@ -145,6 +186,9 @@ export class Log {
   get occurredAt(): Date { return this.props.occurredAt; }
   get resolvedAt(): Date | null { return this.props.resolvedAt; }
   get resolvedBy(): string | null { return this.props.resolvedBy; }
+  get adminNote(): string | null { return this.props.adminNote; }
+  get adminNoteUpdatedAt(): Date | null { return this.props.adminNoteUpdatedAt; }
+  get adminNoteUpdatedBy(): string | null { return this.props.adminNoteUpdatedBy; }
 
   toJSON(): {
     id: string;
@@ -165,6 +209,9 @@ export class Log {
     occurredAt: Date;
     resolvedAt: Date | null;
     resolvedBy: string | null;
+    adminNote: string | null;
+    adminNoteUpdatedAt: Date | null;
+    adminNoteUpdatedBy: string | null;
   } {
     return {
       id: this.id,
@@ -185,6 +232,9 @@ export class Log {
       occurredAt: this.occurredAt,
       resolvedAt: this.resolvedAt,
       resolvedBy: this.resolvedBy,
+      adminNote: this.adminNote,
+      adminNoteUpdatedAt: this.adminNoteUpdatedAt,
+      adminNoteUpdatedBy: this.adminNoteUpdatedBy,
     };
   }
 }
