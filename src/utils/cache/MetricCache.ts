@@ -1,4 +1,10 @@
-import { DashboardQuery, ListMetricsQuery, MetricsDashboard } from "../../app/interfaces/Metric.port";
+import {
+  DashboardQuery,
+  ListMetricsQuery,
+  MetricsDashboard,
+  TrafficAnalytics,
+  TrafficAnalyticsQuery,
+} from "../../app/interfaces/Metric.port";
 import { Metric, MetricType } from "../../domain/aggregates/Metric";
 import { TTL_MAP } from "../TTL.map";
 
@@ -38,15 +44,19 @@ export type CachedDashboard = {
   }>;
 };
 
+export type CachedTrafficAnalytics = TrafficAnalytics;
+
 export const METRIC_CACHE_POLICY = {
   metricTtl: TTL_MAP.tenMinutes,
   metricsListTtl: TTL_MAP.oneMinute,
   metricsDashboardTtl: TTL_MAP.oneMinute,
+  metricsTrafficTtl: TTL_MAP.oneMinute,
 } as const;
 
 const METRICS_PREFIX = "metrics";
 const METRICS_LIST_PREFIX = `${METRICS_PREFIX}:list`;
 const METRICS_DASHBOARD_PREFIX = `${METRICS_PREFIX}:dashboard`;
+const METRICS_TRAFFIC_PREFIX = `${METRICS_PREFIX}:traffic`;
 
 export const MetricCacheKeys = {
   byId: (id: string): string => `${METRICS_PREFIX}:by-id:${id}`,
@@ -55,6 +65,15 @@ export const MetricCacheKeys = {
   dashboardPrefix: (): string => METRICS_DASHBOARD_PREFIX,
   dashboard: (query: DashboardQuery): string =>
     `${METRICS_DASHBOARD_PREFIX}:${JSON.stringify({ hours: query.hours ?? 24, topLimit: query.topLimit ?? 10 })}`,
+  trafficPrefix: (): string => METRICS_TRAFFIC_PREFIX,
+  traffic: (query: TrafficAnalyticsQuery): string =>
+    `${METRICS_TRAFFIC_PREFIX}:${JSON.stringify({
+      from: query.from.toISOString(),
+      to: query.to.toISOString(),
+      limitRecent: query.limitRecent ?? 20,
+      limitRoutes: query.limitRoutes ?? 20,
+      limitReferrers: query.limitReferrers ?? 20,
+    })}`,
 };
 
 export function serializeMetricForCache(metric: Metric): CachedMetric {

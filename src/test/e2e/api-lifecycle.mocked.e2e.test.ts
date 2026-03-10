@@ -140,6 +140,36 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.getGlobalProceduralCounts.execute).toHaveBeenCalled();
   });
 
+  test("returns dedicated traffic analytics for admin", async () => {
+    const { app, mocks } = buildTestApi();
+    const response = await request(app)
+      .get("/api/v1/metrics/performance/traffic?from=2026-03-08T00:00:00.000Z&to=2026-03-10T23:59:59.999Z&limitRecent=5&limitRoutes=7&limitReferrers=3")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        overview: expect.objectContaining({
+          pageViews: expect.any(Number),
+          uniqueSessions: expect.any(Number),
+          trackedRoutes: expect.any(Number),
+          externalReferrals: expect.any(Number),
+        }),
+        viewsByDay: expect.any(Array),
+        routes: expect.any(Array),
+        referrers: expect.any(Array),
+        recentViews: expect.any(Array),
+      }),
+    );
+    expect(mocks.trafficAnalytics.execute).toHaveBeenCalledWith({
+      from: new Date("2026-03-08T00:00:00.000Z"),
+      to: new Date("2026-03-10T23:59:59.999Z"),
+      limitRecent: 5,
+      limitRoutes: 7,
+      limitReferrers: 3,
+    });
+  });
+
   test("forbids global procedural totals for non-admin", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)
@@ -189,6 +219,23 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
       .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
       .expect(204);
     expect(mocks.clearAdminNote.execute).toHaveBeenCalledWith("10");
+  });
+
+  test("returns raw log dashboard data for admin without masking", async () => {
+    const { app } = buildTestApi();
+    const response = await request(app)
+      .get("/api/v1/logs/10?view=dashboard")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(response.body.context).toEqual({
+      reason: "ownership_denied",
+      authorization: "Bearer secret-token",
+    });
+    expect(response.body.ip).toBe("192.168.1.50");
+    expect(response.body.fingerprint).toBe("fp_mocked_1234567890");
+    expect(response.body).not.toHaveProperty("ipMasked");
+    expect(response.body).not.toHaveProperty("fingerprintMasked");
   });
 
   test("allows authenticated users to create donation checkout sessions", async () => {

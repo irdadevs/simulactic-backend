@@ -1,4 +1,11 @@
-import { DashboardQuery, IMetric, ListMetricsQuery, MetricsDashboard } from "../../app/interfaces/Metric.port";
+import {
+  DashboardQuery,
+  IMetric,
+  ListMetricsQuery,
+  MetricsDashboard,
+  TrafficAnalyticsQuery,
+  TrafficPageViewRecord,
+} from "../../app/interfaces/Metric.port";
 import { Queryable, QueryResultRow } from "../../config/db/Queryable";
 import { Metric } from "../../domain/aggregates/Metric";
 import { paginateFrom, ParamBag } from "../../utils/Pagination";
@@ -264,5 +271,39 @@ export default class MetricRepo implements IMetric {
         context: row.context ?? {},
       })),
     };
+  }
+
+  async listTrafficPageViews(query: TrafficAnalyticsQuery): Promise<TrafficPageViewRecord[]> {
+    const result = await this.db.query<{
+      id: string;
+      duration_ms: number;
+      occurred_at: Date;
+      tags: Record<string, unknown>;
+      context: Record<string, unknown>;
+    }>(
+      `
+      SELECT
+        id,
+        duration_ms,
+        occurred_at,
+        tags,
+        context
+      FROM metrics.performance_metrics
+      WHERE metric_name = 'traffic.page_view'
+        AND occurred_at >= $1
+        AND occurred_at <= $2
+        AND is_archived = false
+      ORDER BY occurred_at DESC
+      `,
+      [query.from, query.to],
+    );
+
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      durationMs: Number(row.duration_ms),
+      occurredAt: new Date(row.occurred_at),
+      tags: row.tags ?? {},
+      context: row.context ?? {},
+    }));
   }
 }

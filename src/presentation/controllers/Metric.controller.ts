@@ -3,10 +3,12 @@ import { TrackMetric } from "../../app/use-cases/commands/metrics/TrackMetric.co
 import { FindMetric } from "../../app/use-cases/queries/metrics/FindMetric.query";
 import { ListMetrics } from "../../app/use-cases/queries/metrics/ListMetrics.query";
 import { MetricsDashboardQuery } from "../../app/use-cases/queries/metrics/MetricsDashboard.query";
+import { TrafficAnalyticsQueryService } from "../../app/use-cases/queries/metrics/TrafficAnalytics.query";
 import { TrackMetricDTO } from "../security/metrics/TrackMetric.dto";
 import { FindMetricByIdDTO } from "../security/metrics/FindMetricById.dto";
 import { ListMetricsDTO } from "../security/metrics/ListMetrics.dto";
 import { MetricsDashboardDTO } from "../security/metrics/MetricsDashboard.dto";
+import { TrafficAnalyticsDTO } from "../security/metrics/TrafficAnalytics.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
 import { presentMetric, presentMetricAdmin } from "../presenters/Aggregate.presenter";
@@ -17,6 +19,7 @@ export class MetricController {
     private readonly findMetric: FindMetric,
     private readonly listMetrics: ListMetrics,
     private readonly dashboardMetrics: MetricsDashboardQuery,
+    private readonly trafficAnalytics: TrafficAnalyticsQueryService,
   ) {}
 
   private wantsDashboardView(req: Request): boolean {
@@ -72,6 +75,17 @@ export class MetricController {
       const parsed = MetricsDashboardDTO.safeParse(req.query);
       if (!parsed.success) return invalidBody(res, parsed.error);
       const result = await this.dashboardMetrics.execute(parsed.data);
+      return res.status(200).json(result);
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public traffic = async (req: Request, res: Response) => {
+    try {
+      const parsed = TrafficAnalyticsDTO.safeParse(req.query);
+      if (!parsed.success) return invalidBody(res, parsed.error);
+      const result = await this.trafficAnalytics.execute(parsed.data);
       return res.status(200).json(result);
     } catch (err: unknown) {
       return errorHandler(err, res);
