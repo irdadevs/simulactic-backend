@@ -136,6 +136,7 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
+      listSupporterBadges: async () => ({ rows: [], total: 0 }),
       getSupporterProgress: async (_userId: string) => emptyProgress,
       refreshSupporterProgress: async (_userId: string) => emptyProgress,
     };
@@ -197,6 +198,7 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
+      listSupporterBadges: async () => ({ rows: [], total: 0 }),
       getSupporterProgress: async (_userId: string) => emptyProgress,
       refreshSupporterProgress: async (_userId: string) => ({
         ...emptyProgress,
@@ -281,6 +283,7 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
+      listSupporterBadges: async () => ({ rows: [], total: 0 }),
       getSupporterProgress: async (_userId: string) => emptyProgress,
       refreshSupporterProgress: async (_userId: string) => emptyProgress,
     };
@@ -333,6 +336,7 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
+      listSupporterBadges: async () => ({ rows: [], total: 0 }),
       getSupporterProgress: async (_userId: string) => emptyProgress,
       refreshSupporterProgress: async (_userId: string) => emptyProgress,
     };

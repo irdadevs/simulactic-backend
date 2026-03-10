@@ -491,6 +491,29 @@ export function buildTestApi(): {
     listDonations: {
       execute: jest.fn(async () => ({ rows: [], total: 0 })),
     },
+    listSupporterBadges: {
+      execute: jest.fn(async () => ({
+        rows: [
+          {
+            id: 1,
+            branch: "amount",
+            level: 1,
+            name: "Bronze Patron",
+            quantityLabel: "5 EUR",
+            threshold: 500,
+          },
+          {
+            id: 7,
+            branch: "months",
+            level: 1,
+            name: "Monthly Initiate",
+            quantityLabel: "1 month",
+            threshold: 1,
+          },
+        ],
+        total: 2,
+      })),
+    },
     getSupporterProgress: {
       execute: jest.fn(async () => ({
         totalDonatedEurMinor: 919,
@@ -653,6 +676,7 @@ export function buildTestApi(): {
     mocks.cancelDonation as any,
     mocks.findDonation as any,
     mocks.listDonations as any,
+    mocks.listSupporterBadges as any,
   );
 
   const app = Express();

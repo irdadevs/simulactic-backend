@@ -4,6 +4,7 @@ import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
 import { FindDonation } from "../../app/use-cases/queries/donations/FindDonation.query";
 import { ListDonations } from "../../app/use-cases/queries/donations/ListDonations.query";
+import { ListSupporterBadges } from "../../app/use-cases/queries/donations/ListSupporterBadges.query";
 import { CreateDonationCheckoutDTO } from "../security/donations/CreateDonationCheckout.dto";
 import { ConfirmDonationBySessionDTO } from "../security/donations/ConfirmDonationBySession.dto";
 import { FindDonationByIdDTO } from "../security/donations/FindDonationById.dto";
@@ -20,6 +21,7 @@ export class DonationController {
     private readonly cancelDonation: CancelDonation,
     private readonly findDonation: FindDonation,
     private readonly listDonations: ListDonations,
+    private readonly listSupporterBadges: ListSupporterBadges,
   ) {}
 
   private isAdmin(req: Request): boolean {
@@ -129,6 +131,15 @@ export class DonationController {
         rows: result.rows.map((row) => mapDonation(row)),
         total: result.total,
       });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public listBadges = async (_req: Request, res: Response) => {
+    try {
+      const result = await this.listSupporterBadges.execute();
+      return res.status(200).json(result);
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

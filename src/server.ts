@@ -129,6 +129,7 @@ import { CancelDonation } from "./app/use-cases/commands/donations/CancelDonatio
 import { FindDonation } from "./app/use-cases/queries/donations/FindDonation.query";
 import { ListDonations } from "./app/use-cases/queries/donations/ListDonations.query";
 import { GetSupporterProgress } from "./app/use-cases/queries/donations/GetSupporterProgress.query";
+import { ListSupporterBadges } from "./app/use-cases/queries/donations/ListSupporterBadges.query";
 import { DbMetricInput } from "./config/db/DbMetrics";
 import { MaintenanceScheduler } from "./infra/jobs/Maintenance.scheduler";
 import { SecurityBanService } from "./app/app-services/security/SecurityBan.service";
@@ -336,6 +337,7 @@ async function start(): Promise<void> {
     const findDonation = new FindDonation(donationRepo, donationCache);
     const listDonations = new ListDonations(donationRepo, donationCache);
     const getSupporterProgress = new GetSupporterProgress(donationRepo);
+    const listSupporterBadges = new ListSupporterBadges(donationRepo);
     const dbMetricTracker = {
       track: async (input: DbMetricInput): Promise<void> => {
         await trackMetric.execute({
@@ -610,6 +612,7 @@ async function start(): Promise<void> {
       cancelDonation,
       findDonation,
       listDonations,
+      listSupporterBadges,
     );
     // Middlewares
     const authMiddleware = new AuthMiddleware(

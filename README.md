@@ -63,8 +63,20 @@ Supporter progression is computed from persisted donations and exposed as a comp
 
 - `totalDonatedEurMinor`: total donations converted to EUR minor units.
 - `monthlySupportingMonths`: total elapsed monthly support time.
-- `unlockedBadges`: badge ids (`amount_l*`, `months_l*`) for client-side rehydration.
+- `unlockedBadges`: unlocked badge objects with `branch`, `level`, `name`, `quantityLabel`, `threshold`, and `unlockedAt`.
 - `amountBranch` / `monthlyBranch`: current level and next threshold.
+
+Supporter badge catalog:
+
+- `GET /donations/badges` (Auth)
+- Returns `{ rows, total }`
+- Each row includes:
+  - `id`
+  - `branch`
+  - `level`
+  - `name`
+  - `quantityLabel`
+  - `threshold`
 
 EUR normalization now uses persisted daily FX rates (`billing.fx_rates_daily`) refreshed by maintenance jobs from ECB.
 
@@ -238,6 +250,7 @@ Galaxy read model notes:
 
 ### Donations
 
+- `GET /donations/badges` (Auth)
 - `POST /donations/checkout` (Auth)
 - `POST /donations/checkout/:sessionId/confirm` (Auth)
 - `POST /donations/:id/cancel` (Auth)
