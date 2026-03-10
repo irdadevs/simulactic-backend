@@ -679,4 +679,27 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     );
     expect(progress.body.updatedAt).toEqual(expect.any(String));
   });
+
+  test("supporter badge catalog requires auth and returns badge definitions", async () => {
+    await request(app).get("/api/v1/donations/badges").expect(401);
+
+    const userALogin = await login(userA.email);
+    const response = await request(app)
+      .get("/api/v1/donations/badges")
+      .set("Cookie", userALogin.cookies)
+      .expect(200);
+
+    expect(Number(response.body.total)).toBeGreaterThan(0);
+    expect(Array.isArray(response.body.rows)).toBe(true);
+    expect(response.body.rows[0]).toEqual(
+      expect.objectContaining({
+        id: expect.any(Number),
+        branch: expect.any(String),
+        level: expect.any(Number),
+        name: expect.any(String),
+        quantityLabel: expect.any(String),
+        threshold: expect.any(Number),
+      }),
+    );
+  });
 });

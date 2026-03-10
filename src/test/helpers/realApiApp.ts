@@ -114,6 +114,7 @@ import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDon
 import { FindDonation } from "../../app/use-cases/queries/donations/FindDonation.query";
 import { ListDonations } from "../../app/use-cases/queries/donations/ListDonations.query";
 import { GetSupporterProgress } from "../../app/use-cases/queries/donations/GetSupporterProgress.query";
+import { ListSupporterBadges } from "../../app/use-cases/queries/donations/ListSupporterBadges.query";
 import { User } from "../../domain/aggregates/User";
 import { RealInfraContext } from "./realInfra";
 import {
@@ -244,6 +245,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const findDonation = new FindDonation(donationRepo, donationCache);
   const listDonations = new ListDonations(donationRepo, donationCache);
   const getSupporterProgress = new GetSupporterProgress(donationRepo);
+  const listSupporterBadges = new ListSupporterBadges(donationRepo);
 
   const createGalaxy = new CreateGalaxy(
     ctx.uowFactory,
@@ -498,6 +500,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     cancelDonation,
     findDonation,
     listDonations,
+    listSupporterBadges,
   );
 
   const authMiddleware = new AuthMiddleware(

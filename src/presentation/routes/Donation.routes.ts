@@ -10,6 +10,12 @@ export function DonationRoutes(
 ): RouteDef[] {
   return [
     {
+      method: "get",
+      path: "/badges",
+      before: [auth.requireAuth()],
+      handler: ctrl.listBadges,
+    },
+    {
       method: "post",
       path: "/checkout",
       before: [auth.requireAuth()],

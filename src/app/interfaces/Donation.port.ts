@@ -20,6 +20,10 @@ export type SupporterBadgeLevel = {
   threshold: number;
 };
 
+export type SupporterBadgeDefinition = SupporterBadgeLevel & {
+  id: number;
+};
+
 export type SupporterUnlockedBadge = SupporterBadgeLevel & {
   unlockedAt: Date;
 };
@@ -47,6 +51,7 @@ export interface IDonation {
   findById(id: string): Promise<Donation | null>;
   findByProviderSessionId(sessionId: string): Promise<Donation | null>;
   list(query: ListDonationsQuery): Promise<{ rows: Donation[]; total: number }>;
+  listSupporterBadges(): Promise<{ rows: SupporterBadgeDefinition[]; total: number }>;
   getSupporterProgress(userId: string): Promise<SupporterProgress>;
   refreshSupporterProgress(userId: string): Promise<SupporterProgress>;
 }

@@ -291,6 +291,32 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.createDonationCheckout.execute).toHaveBeenCalled();
   });
 
+  test("rejects supporter badge catalog when auth is missing", async () => {
+    const { app } = buildTestApi();
+    await request(app).get("/api/v1/donations/badges").expect(401);
+  });
+
+  test("returns the full supporter badge catalog for authenticated users", async () => {
+    const { app } = buildTestApi();
+    const response = await request(app)
+      .get("/api/v1/donations/badges")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .expect(200);
+
+    expect(response.body.total).toBeGreaterThan(0);
+    expect(Array.isArray(response.body.rows)).toBe(true);
+    expect(response.body.rows[0]).toEqual(
+      expect.objectContaining({
+        id: expect.any(Number),
+        branch: expect.any(String),
+        level: expect.any(Number),
+        name: expect.any(String),
+        quantityLabel: expect.any(String),
+        threshold: expect.any(Number),
+      }),
+    );
+  });
+
   test("returns extended but sanitized admin dashboard user view", async () => {
     const { app } = buildTestApi();
     const response = await request(app)

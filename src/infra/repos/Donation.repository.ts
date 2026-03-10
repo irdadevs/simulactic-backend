@@ -2,6 +2,7 @@ import {
   IDonation,
   ListDonationsQuery,
   SupporterBadgeBranch,
+  SupporterBadgeDefinition,
   SupporterBadgeBranchProgress,
   SupporterBadgeLevel,
   SupporterProgress,
@@ -52,6 +53,13 @@ export default class DonationRepo implements IDonation {
       name: String(row.name),
       quantityLabel: String(row.quantity_label),
       threshold: Number(row.threshold),
+    };
+  }
+
+  private mapBadgeDefinition(row: QueryResultRow): SupporterBadgeDefinition {
+    return {
+      id: Number(row.id),
+      ...this.mapBadgeLevel(row),
     };
   }
 
@@ -221,6 +229,27 @@ export default class DonationRepo implements IDonation {
     return {
       rows: page.rows.map((row) => this.mapRow(row)),
       total: page.total,
+    };
+  }
+
+  async listSupporterBadges(): Promise<{ rows: SupporterBadgeDefinition[]; total: number }> {
+    const query = await this.db.query(
+      `
+      SELECT
+        id,
+        level,
+        branch,
+        name,
+        quantity_label,
+        threshold
+      FROM billing.supporter_badges
+      ORDER BY branch ASC, level ASC
+      `,
+    );
+
+    return {
+      rows: query.rows.map((row) => this.mapBadgeDefinition(row)),
+      total: query.rowCount ?? query.rows.length,
     };
   }
 
