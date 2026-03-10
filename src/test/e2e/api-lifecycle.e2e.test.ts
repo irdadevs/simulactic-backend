@@ -667,5 +667,16 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(Number(progress.body.totalDonatedEurMinor)).toBeGreaterThan(0);
     expect(Number(progress.body.monthlySupportingMonths)).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(progress.body.unlockedBadges)).toBe(true);
+    expect(progress.body.unlockedBadges[0]).toEqual(
+      expect.objectContaining({
+        branch: expect.any(String),
+        level: expect.any(Number),
+        name: expect.any(String),
+        quantityLabel: expect.any(String),
+        threshold: expect.any(Number),
+        unlockedAt: expect.any(String),
+      }),
+    );
+    expect(progress.body.updatedAt).toEqual(expect.any(String));
   });
 });

@@ -29,5 +29,6 @@ export class CancelDonation {
     donation.cancel();
     const saved = await this.donationRepo.save(donation);
     await this.donationCache.invalidateForMutation(saved);
+    await this.donationRepo.refreshSupporterProgress(saved.userId);
   }
 }

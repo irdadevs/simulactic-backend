@@ -47,6 +47,8 @@ export class ConfirmDonationBySession {
     const saved = await this.donationRepo.save(donation);
     await this.donationCache.invalidateForMutation(saved);
 
+    await this.donationRepo.refreshSupporterProgress(saved.userId);
+
     if (saved.status === "active" || saved.status === "completed") {
       const user = await this.userRepo.findById(Uuid.create(saved.userId));
       if (user && !user.isSupporter) {

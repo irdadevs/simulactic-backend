@@ -1,6 +1,6 @@
 import { Donation } from "../../domain/aggregates/Donation";
 import { DonationCacheService } from "../../app/app-services/donations/DonationCache.service";
-import { IDonation } from "../../app/interfaces/Donation.port";
+import { IDonation, SupporterProgress } from "../../app/interfaces/Donation.port";
 import {
   IPaymentGateway,
   PaymentSessionResult,
@@ -19,6 +19,41 @@ const assertErrorCode = async (fn: () => Promise<unknown>, code: string): Promis
   }
   expect(thrown).toBeDefined();
   expect((thrown as { code?: string }).code).toBe(code);
+};
+
+const emptyProgress: SupporterProgress = {
+  totalDonatedEurMinor: 0,
+  monthlySupportingMonths: 0,
+  unlockedBadges: [],
+  amountBranch: {
+    level: 0,
+    maxLevel: 6,
+    nextLevel: 1,
+    nextThreshold: 500,
+    currentBadge: null,
+    nextBadge: {
+      branch: "amount" as const,
+      level: 1,
+      name: "Bronze Patron",
+      quantityLabel: "5 EUR",
+      threshold: 500,
+    },
+  },
+  monthlyBranch: {
+    level: 0,
+    maxLevel: 7,
+    nextLevel: 1,
+    nextThreshold: 1,
+    currentBadge: null,
+    nextBadge: {
+      branch: "months" as const,
+      level: 1,
+      name: "Monthly Initiate",
+      quantityLabel: "1 month",
+      threshold: 1,
+    },
+  },
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
 
 describe("Donation aggregate", () => {
@@ -101,13 +136,8 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
-      getSupporterProgress: async (_userId: string) => ({
-        totalDonatedEurMinor: 0,
-        monthlySupportingMonths: 0,
-        unlockedBadges: [],
-        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
-        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
-      }),
+      getSupporterProgress: async (_userId: string) => emptyProgress,
+      refreshSupporterProgress: async (_userId: string) => emptyProgress,
     };
 
     const gateway: IPaymentGateway = {
@@ -167,12 +197,11 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
-      getSupporterProgress: async (_userId: string) => ({
-        totalDonatedEurMinor: 0,
-        monthlySupportingMonths: 0,
-        unlockedBadges: [],
-        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
-        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
+      getSupporterProgress: async (_userId: string) => emptyProgress,
+      refreshSupporterProgress: async (_userId: string) => ({
+        ...emptyProgress,
+        totalDonatedEurMinor: 999,
+        monthlySupportingMonths: 1,
       }),
     };
 
@@ -198,7 +227,11 @@ describe("Donation commands", () => {
     } as unknown as DonationCacheService;
     const user = {
       isSupporter: false,
-      markSupporter: jest.fn<void, []>(() => undefined),
+      supporterFrom: null as Date | null,
+      markSupporter: jest.fn<void, []>(() => {
+        user.isSupporter = true;
+        user.supporterFrom = new Date("2026-01-01T00:00:00.000Z");
+      }),
     };
     const userRepo = {
       findById: jest.fn<Promise<typeof user>, []>(async () => user),
@@ -248,13 +281,8 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
-      getSupporterProgress: async (_userId: string) => ({
-        totalDonatedEurMinor: 0,
-        monthlySupportingMonths: 0,
-        unlockedBadges: [],
-        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
-        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
-      }),
+      getSupporterProgress: async (_userId: string) => emptyProgress,
+      refreshSupporterProgress: async (_userId: string) => emptyProgress,
     };
 
     const gateway: IPaymentGateway = {
@@ -305,13 +333,8 @@ describe("Donation commands", () => {
         rows: [],
         total: 0,
       }),
-      getSupporterProgress: async (_userId: string) => ({
-        totalDonatedEurMinor: 0,
-        monthlySupportingMonths: 0,
-        unlockedBadges: [],
-        amountBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 500 },
-        monthlyBranch: { level: 0, maxLevel: 6, nextLevel: 1, nextThreshold: 1 },
-      }),
+      getSupporterProgress: async (_userId: string) => emptyProgress,
+      refreshSupporterProgress: async (_userId: string) => emptyProgress,
     };
 
     const gateway: IPaymentGateway = {

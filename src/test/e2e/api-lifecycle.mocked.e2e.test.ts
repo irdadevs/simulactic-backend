@@ -330,12 +330,24 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
       }),
     );
     expect(Array.isArray(response.body.unlockedBadges)).toBe(true);
+    expect(response.body.unlockedBadges[0]).toEqual(
+      expect.objectContaining({
+        branch: expect.any(String),
+        level: expect.any(Number),
+        name: expect.any(String),
+        quantityLabel: expect.any(String),
+        threshold: expect.any(Number),
+        unlockedAt: expect.any(String),
+      }),
+    );
     expect(response.body.amountBranch).toEqual(
       expect.objectContaining({
         level: expect.any(Number),
         maxLevel: expect.any(Number),
         nextLevel: expect.anything(),
         nextThreshold: expect.anything(),
+        currentBadge: expect.anything(),
+        nextBadge: expect.anything(),
       }),
     );
     expect(response.body.monthlyBranch).toEqual(
@@ -344,8 +356,11 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
         maxLevel: expect.any(Number),
         nextLevel: expect.anything(),
         nextThreshold: expect.anything(),
+        currentBadge: expect.anything(),
+        nextBadge: expect.anything(),
       }),
     );
+    expect(response.body.updatedAt).toEqual(expect.any(String));
   });
 
   test("rejects change password when currentPassword is missing", async () => {

@@ -74,6 +74,33 @@ CREATE TABLE IF NOT EXISTS billing.donations (
 CREATE TABLE IF NOT EXISTS billing.donations_archive
 (LIKE billing.donations INCLUDING ALL);
 
+CREATE TABLE IF NOT EXISTS billing.supporter_badges (
+  id serial PRIMARY KEY,
+  branch text NOT NULL CHECK (branch IN ('amount', 'months')),
+  level integer NOT NULL CHECK (level >= 1),
+  name text NOT NULL,
+  quantity_label text NOT NULL,
+  threshold integer NOT NULL CHECK (threshold >= 0),
+  UNIQUE (branch, level),
+  UNIQUE (branch, threshold)
+);
+
+CREATE TABLE IF NOT EXISTS billing.supporter_progress (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  total_donated_eur_minor integer NOT NULL DEFAULT 0 CHECK (total_donated_eur_minor >= 0),
+  monthly_supporting_months integer NOT NULL DEFAULT 0 CHECK (monthly_supporting_months >= 0),
+  amount_level integer NOT NULL DEFAULT 0 CHECK (amount_level >= 0),
+  monthly_level integer NOT NULL DEFAULT 0 CHECK (monthly_level >= 0),
+  updated_at timestamptz NOT NULL DEFAULT now_utc()
+);
+
+CREATE TABLE IF NOT EXISTS billing.supporter_badge_unlocks (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  badge_id integer NOT NULL REFERENCES billing.supporter_badges(id) ON DELETE CASCADE,
+  unlocked_at timestamptz NOT NULL DEFAULT now_utc(),
+  PRIMARY KEY (user_id, badge_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_donations_user
   ON billing.donations (user_id);
 CREATE INDEX IF NOT EXISTS idx_donations_created_at
@@ -85,6 +112,10 @@ CREATE INDEX IF NOT EXISTS idx_donations_type
 CREATE INDEX IF NOT EXISTS idx_donations_active
   ON billing.donations (created_at DESC)
   WHERE is_archived = false;
+CREATE INDEX IF NOT EXISTS idx_supporter_badges_branch_level
+  ON billing.supporter_badges (branch, level);
+CREATE INDEX IF NOT EXISTS idx_supporter_badge_unlocks_user
+  ON billing.supporter_badge_unlocks (user_id, unlocked_at DESC);
 
 DROP TRIGGER IF EXISTS trg_donations_updated_at ON billing.donations;
 CREATE TRIGGER trg_donations_updated_at
