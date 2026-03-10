@@ -1,22 +1,29 @@
 import {
   IDonation,
   ListDonationsQuery,
+  SupporterBadgeBranch,
   SupporterBadgeBranchProgress,
+  SupporterBadgeLevel,
   SupporterProgress,
+  SupporterUnlockedBadge,
 } from "../../app/interfaces/Donation.port";
 import { Queryable, QueryResultRow } from "../../config/db/Queryable";
 import { Donation } from "../../domain/aggregates/Donation";
 import { paginateFrom, ParamBag } from "../../utils/Pagination";
 import { ErrorFactory } from "../../utils/errors/Error.map";
 
+type StoredSupporterProgress = {
+  totalDonatedEurMinor: number;
+  monthlySupportingMonths: number;
+  amountLevel: number;
+  monthlyLevel: number;
+  updatedAt: Date | null;
+};
+
 export default class DonationRepo implements IDonation {
   constructor(private readonly db: Queryable) {}
 
   private static readonly EUR_MINOR_UNITS = 100;
-  private static readonly AMOUNT_BADGE_THRESHOLDS_EUR_MINOR = [
-    500, 2_000, 5_000, 10_000, 25_000, 50_000,
-  ];
-  private static readonly MONTHLY_BADGE_THRESHOLDS_MONTHS = [1, 3, 6, 12, 24, 36];
 
   private mapRow(row: QueryResultRow): Donation {
     return Donation.rehydrate({
@@ -36,6 +43,23 @@ export default class DonationRepo implements IDonation {
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     });
+  }
+
+  private mapBadgeLevel(row: QueryResultRow): SupporterBadgeLevel {
+    return {
+      level: Number(row.level),
+      branch: row.branch,
+      name: String(row.name),
+      quantityLabel: String(row.quantity_label),
+      threshold: Number(row.threshold),
+    };
+  }
+
+  private mapUnlockedBadge(row: QueryResultRow): SupporterUnlockedBadge {
+    return {
+      ...this.mapBadgeLevel(row),
+      unlockedAt: new Date(row.unlocked_at),
+    };
   }
 
   async save(donation: Donation): Promise<Donation> {
@@ -254,27 +278,157 @@ export default class DonationRepo implements IDonation {
     return Math.max(1, months);
   }
 
-  private resolveBadgeProgress(
-    currentValue: number,
-    thresholds: number[],
-  ): SupporterBadgeBranchProgress {
-    let level = 0;
-    for (const threshold of thresholds) {
-      if (currentValue >= threshold) level += 1;
+  private async loadBadgeLevels(branch: SupporterBadgeBranch): Promise<SupporterBadgeLevel[]> {
+    const query = await this.db.query(
+      `
+      SELECT
+        level,
+        branch,
+        name,
+        quantity_label,
+        threshold
+      FROM billing.supporter_badges
+      WHERE branch = $1
+      ORDER BY level ASC
+      `,
+      [branch],
+    );
+
+    if (query.rowCount === 0) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", {
+        sourceType: "supporter_badges",
+        id: branch,
+      });
     }
 
-    const nextLevel = level >= thresholds.length ? null : level + 1;
-    const nextThreshold = nextLevel ? thresholds[nextLevel - 1] : null;
+    return query.rows.map((row) => this.mapBadgeLevel(row));
+  }
+
+  private async resolveBadgeProgress(
+    branch: SupporterBadgeBranch,
+    currentValue: number,
+  ): Promise<SupporterBadgeBranchProgress> {
+    const badges = await this.loadBadgeLevels(branch);
+    const currentBadge = [...badges].reverse().find((badge) => currentValue >= badge.threshold) ?? null;
+    const nextBadge = badges.find((badge) => currentValue < badge.threshold) ?? null;
 
     return {
-      level,
-      maxLevel: thresholds.length,
-      nextLevel,
-      nextThreshold,
+      level: currentBadge?.level ?? 0,
+      maxLevel: badges.length,
+      nextLevel: nextBadge?.level ?? null,
+      nextThreshold: nextBadge?.threshold ?? null,
+      currentBadge,
+      nextBadge,
     };
   }
 
-  async getSupporterProgress(userId: string): Promise<SupporterProgress> {
+  private async loadUnlockedBadges(userId: string): Promise<SupporterUnlockedBadge[]> {
+    const query = await this.db.query(
+      `
+      SELECT
+        b.level,
+        b.branch,
+        b.name,
+        b.quantity_label,
+        b.threshold,
+        u.unlocked_at
+      FROM billing.supporter_badge_unlocks u
+      JOIN billing.supporter_badges b ON b.id = u.badge_id
+      WHERE u.user_id = $1
+      ORDER BY b.branch ASC, b.level ASC
+      `,
+      [userId],
+    );
+
+    return query.rows.map((row) => this.mapUnlockedBadge(row));
+  }
+
+  private async loadStoredSupporterProgress(userId: string): Promise<StoredSupporterProgress | null> {
+    const query = await this.db.query(
+      `
+      SELECT
+        total_donated_eur_minor,
+        monthly_supporting_months,
+        amount_level,
+        monthly_level,
+        updated_at
+      FROM billing.supporter_progress
+      WHERE user_id = $1
+      LIMIT 1
+      `,
+      [userId],
+    );
+
+    if (query.rowCount === 0) return null;
+
+    const row = query.rows[0];
+    return {
+      totalDonatedEurMinor: Number(row.total_donated_eur_minor),
+      monthlySupportingMonths: Number(row.monthly_supporting_months),
+      amountLevel: Number(row.amount_level),
+      monthlyLevel: Number(row.monthly_level),
+      updatedAt: row.updated_at ? new Date(row.updated_at) : null,
+    };
+  }
+
+  private async toProgressFromStored(
+    stored: StoredSupporterProgress,
+    unlockedBadges: SupporterUnlockedBadge[],
+  ): Promise<SupporterProgress> {
+    return {
+      totalDonatedEurMinor: stored.totalDonatedEurMinor,
+      monthlySupportingMonths: stored.monthlySupportingMonths,
+      unlockedBadges,
+      amountBranch: {
+        ...(await this.resolveBadgeProgress("amount", stored.totalDonatedEurMinor)),
+        level: stored.amountLevel,
+      },
+      monthlyBranch: {
+        ...(await this.resolveBadgeProgress("months", stored.monthlySupportingMonths)),
+        level: stored.monthlyLevel,
+      },
+      updatedAt: stored.updatedAt,
+    };
+  }
+
+  private async replaceBranchUnlocks(
+    userId: string,
+    branch: SupporterBadgeBranch,
+    level: number,
+  ): Promise<void> {
+    await this.db.query(
+      `
+      DELETE FROM billing.supporter_badge_unlocks
+      WHERE user_id = $1
+        AND badge_id IN (
+          SELECT id FROM billing.supporter_badges WHERE branch = $2
+        )
+      `,
+      [userId, branch],
+    );
+
+    if (level <= 0) {
+      return;
+    }
+
+    await this.db.query(
+      `
+      INSERT INTO billing.supporter_badge_unlocks (user_id, badge_id, unlocked_at)
+      SELECT $1, id, now_utc()
+      FROM billing.supporter_badges
+      WHERE branch = $2
+        AND level <= $3
+      `,
+      [userId, branch, level],
+    );
+  }
+
+  private async calculateSupporterProgress(userId: string): Promise<{
+    totalDonatedEurMinor: number;
+    monthlySupportingMonths: number;
+    amountBranch: SupporterBadgeBranchProgress;
+    monthlyBranch: SupporterBadgeBranchProgress;
+  }> {
     const query = await this.db.query<{
       donation_type: "one_time" | "monthly";
       amount_minor: number;
@@ -334,29 +488,64 @@ export default class DonationRepo implements IDonation {
       totalDonatedEurMinor += eurPerMonthMinor * months;
     }
 
-    const amountBranch = this.resolveBadgeProgress(
-      totalDonatedEurMinor,
-      DonationRepo.AMOUNT_BADGE_THRESHOLDS_EUR_MINOR,
-    );
-    const monthlyBranch = this.resolveBadgeProgress(
-      monthlySupportingMonths,
-      DonationRepo.MONTHLY_BADGE_THRESHOLDS_MONTHS,
-    );
-
-    const unlockedBadges: string[] = [];
-    for (let i = 1; i <= amountBranch.level; i += 1) {
-      unlockedBadges.push(`amount_l${i}`);
-    }
-    for (let i = 1; i <= monthlyBranch.level; i += 1) {
-      unlockedBadges.push(`months_l${i}`);
-    }
-
     return {
       totalDonatedEurMinor,
       monthlySupportingMonths,
-      unlockedBadges,
-      amountBranch,
-      monthlyBranch,
+      amountBranch: await this.resolveBadgeProgress("amount", totalDonatedEurMinor),
+      monthlyBranch: await this.resolveBadgeProgress("months", monthlySupportingMonths),
     };
+  }
+
+  async refreshSupporterProgress(userId: string): Promise<SupporterProgress> {
+    const computed = await this.calculateSupporterProgress(userId);
+
+    await this.db.query(
+      `
+      INSERT INTO billing.supporter_progress (
+        user_id,
+        total_donated_eur_minor,
+        monthly_supporting_months,
+        amount_level,
+        monthly_level,
+        updated_at
+      )
+      VALUES ($1,$2,$3,$4,$5,now_utc())
+      ON CONFLICT (user_id) DO UPDATE SET
+        total_donated_eur_minor = EXCLUDED.total_donated_eur_minor,
+        monthly_supporting_months = EXCLUDED.monthly_supporting_months,
+        amount_level = EXCLUDED.amount_level,
+        monthly_level = EXCLUDED.monthly_level,
+        updated_at = now_utc()
+      `,
+      [
+        userId,
+        computed.totalDonatedEurMinor,
+        computed.monthlySupportingMonths,
+        computed.amountBranch.level,
+        computed.monthlyBranch.level,
+      ],
+    );
+
+    await this.replaceBranchUnlocks(userId, "amount", computed.amountBranch.level);
+    await this.replaceBranchUnlocks(userId, "months", computed.monthlyBranch.level);
+
+    const stored = await this.loadStoredSupporterProgress(userId);
+    if (!stored) {
+      throw ErrorFactory.infra("SHARED.NOT_FOUND", {
+        sourceType: "supporter_progress",
+        id: userId,
+      });
+    }
+
+    return this.toProgressFromStored(stored, await this.loadUnlockedBadges(userId));
+  }
+
+  async getSupporterProgress(userId: string): Promise<SupporterProgress> {
+    const stored = await this.loadStoredSupporterProgress(userId);
+    if (!stored) {
+      return this.refreshSupporterProgress(userId);
+    }
+
+    return this.toProgressFromStored(stored, await this.loadUnlockedBadges(userId));
   }
 }

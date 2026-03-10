@@ -604,6 +604,7 @@ export class UserController {
         unlockedBadges: progress.unlockedBadges,
         amountBranch: progress.amountBranch,
         monthlyBranch: progress.monthlyBranch,
+        updatedAt: this.toIsoOrNull(progress.updatedAt),
       });
     } catch (err: unknown) {
       return errorHandler(err, res);

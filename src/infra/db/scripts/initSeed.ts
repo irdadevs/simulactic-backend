@@ -53,6 +53,31 @@ async function main() {
       });
     }
 
+    logInfo("seeding supporter badges");
+    await uow.db.query(
+      `
+      INSERT INTO billing.supporter_badges (branch, level, name, quantity_label, threshold)
+      VALUES
+        ('amount', 1, 'Bronze Patron', '5 EUR', 500),
+        ('amount', 2, 'Silver Patron', '20 EUR', 2000),
+        ('amount', 3, 'Gold Patron', '50 EUR', 5000),
+        ('amount', 4, 'Platinum Patron', '100 EUR', 10000),
+        ('amount', 5, 'Titan Patron', '250 EUR', 25000),
+        ('amount', 6, 'Legend Patron', '500 EUR', 50000),
+        ('months', 1, 'Monthly Initiate', '1 month', 1),
+        ('months', 2, 'Monthly Cadet', '3 months', 3),
+        ('months', 3, 'Monthly Officer', '6 months', 6),
+        ('months', 4, 'Monthly Captain', '12 months', 12),
+        ('months', 5, 'Monthly Admiral', '24 months', 24),
+        ('months', 6, 'Monthly Sovereign', '36 months', 36),
+        ('months', 7, 'Monthly Sovereign', '36 months', 48)
+      ON CONFLICT (branch, level) DO UPDATE SET
+        name = EXCLUDED.name,
+        quantity_label = EXCLUDED.quantity_label,
+        threshold = EXCLUDED.threshold
+      `,
+    );
+
     await uow.commit();
     logSuccess("seed completed");
   } catch (err) {

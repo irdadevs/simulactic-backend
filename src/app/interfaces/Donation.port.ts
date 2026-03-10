@@ -10,19 +10,36 @@ export type ListDonationsQuery = {
   orderDir?: "asc" | "desc";
 };
 
+export type SupporterBadgeBranch = "amount" | "months";
+
+export type SupporterBadgeLevel = {
+  level: number;
+  branch: SupporterBadgeBranch;
+  name: string;
+  quantityLabel: string;
+  threshold: number;
+};
+
+export type SupporterUnlockedBadge = SupporterBadgeLevel & {
+  unlockedAt: Date;
+};
+
 export type SupporterBadgeBranchProgress = {
   level: number;
   maxLevel: number;
   nextLevel: number | null;
   nextThreshold: number | null;
+  currentBadge: SupporterBadgeLevel | null;
+  nextBadge: SupporterBadgeLevel | null;
 };
 
 export type SupporterProgress = {
   totalDonatedEurMinor: number;
   monthlySupportingMonths: number;
-  unlockedBadges: string[];
+  unlockedBadges: SupporterUnlockedBadge[];
   amountBranch: SupporterBadgeBranchProgress;
   monthlyBranch: SupporterBadgeBranchProgress;
+  updatedAt: Date | null;
 };
 
 export interface IDonation {
@@ -31,4 +48,5 @@ export interface IDonation {
   findByProviderSessionId(sessionId: string): Promise<Donation | null>;
   list(query: ListDonationsQuery): Promise<{ rows: Donation[]; total: number }>;
   getSupporterProgress(userId: string): Promise<SupporterProgress>;
+  refreshSupporterProgress(userId: string): Promise<SupporterProgress>;
 }
