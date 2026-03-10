@@ -61,13 +61,37 @@ CREATE TYPE procedurals.star_classes AS ENUM (
   'N'
 );
 CREATE TYPE procedurals.planet_biomes AS ENUM (
+  'ice',
+  'tundra',
+  'glacial',
+  'snow',
+  'permafrost',
+  'frozen_ocean',
+  'ice_canyon',
+  'cryo_volcanic',
+  'polar_desert',
+  'frost_crystal',
+  'gaia',
   'temperate',
+  'continental',
   'desert',
   'ocean',
-  'ice',
+  'archipelago',
+  'forest',
+  'jungle',
+  'savanna',
+  'wetlands',
+  'meadow',
+  'arid',
+  'dune',
+  'volcanic',
+  'lava',
   'toxic',
   'radioactive',
-  'crystal'
+  'sulfuric',
+  'crystal',
+  'barren',
+  'none'
 );
 CREATE TYPE procedurals.galaxy_shapes AS ENUM (
   'spherical',

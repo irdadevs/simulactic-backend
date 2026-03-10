@@ -69,7 +69,7 @@ describe("Planet aggregate", () => {
       () =>
         Planet.create({
           ...validInput,
-          biome: "lava" as "temperate",
+          biome: "invalid_biome" as "temperate",
         }),
       "DOMAIN.INVALID_PLANET_BIOME",
     );
@@ -100,6 +100,27 @@ describe("Planet aggregate", () => {
     planet.changeBiome("desert");
 
     expect(planet.biome).toBe("desert");
+  });
+
+  it('forces gas planets to use "none" biome', () => {
+    const planet = Planet.create({
+      ...validInput,
+      type: "gas",
+      biome: "desert",
+    });
+
+    expect(planet.biome).toBe("none");
+  });
+
+  it('keeps gas planets with "none" biome when changed', () => {
+    const planet = Planet.create({
+      ...validInput,
+      type: "gas",
+    });
+
+    planet.changeBiome("forest");
+
+    expect(planet.biome).toBe("none");
   });
 
   it("changes orbital when different", () => {

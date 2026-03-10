@@ -5,21 +5,50 @@ import { REGEXP } from "../../utils/Regexp";
 import { Uuid } from "./User";
 
 const ALLOWED_PLANET_TYPES = ["solid", "gas"] as const;
-const ALLOWED_PLANET_SIZES = [
-  "proto",
-  "dwarf",
-  "medium",
-  "giant",
-  "supergiant",
-] as const;
-const ALLOWED_PLANET_BIOMES = [
-  "temperate",
-  "desert",
-  "ocean",
-  "ice",
-  "toxic",
-  "radioactive",
-  "crystal",
+const ALLOWED_PLANET_SIZES = ["proto", "dwarf", "medium", "giant", "supergiant"] as const;
+export const PLANET_BIOMES_BY_TEMPERATURE = {
+  cold: [
+    "ice",
+    "tundra",
+    "glacial",
+    "snow",
+    "permafrost",
+    "frozen_ocean",
+    "ice_canyon",
+    "cryo_volcanic",
+    "polar_desert",
+    "frost_crystal",
+  ],
+  temperate: [
+    "gaia",
+    "temperate",
+    "continental",
+    "ocean",
+    "archipelago",
+    "forest",
+    "jungle",
+    "savanna",
+    "wetlands",
+    "meadow",
+  ],
+  warm: [
+    "desert",
+    "arid",
+    "dune",
+    "volcanic",
+    "lava",
+    "toxic",
+    "radioactive",
+    "sulfuric",
+    "crystal",
+    "barren",
+  ],
+} as const;
+export const ALLOWED_PLANET_BIOMES = [
+  ...PLANET_BIOMES_BY_TEMPERATURE.cold,
+  ...PLANET_BIOMES_BY_TEMPERATURE.temperate,
+  ...PLANET_BIOMES_BY_TEMPERATURE.warm,
+  "none",
 ] as const;
 
 const EARTH_MASS = 5.9722e24 as const; // kg
@@ -42,14 +71,11 @@ const PLANET_SIZE_RADIUS = {
   supergiant: [5, 12],
 } as const;
 
-const PLANET_BIOME_TEMPERATURE = {
+const BIOME_CATEGORY_TEMPERATURE_RANGE = {
+  cold: [120, 240],
   temperate: [240, 320],
-  desert: [280, 420],
-  ocean: [250, 330],
-  ice: [120, 240],
-  toxic: [200, 380],
-  radioactive: [200, 500],
-  crystal: [180, 300],
+  warm: [280, 500],
+  none: [50, 500],
 } as const;
 
 export type PlanetType = (typeof ALLOWED_PLANET_TYPES)[number];
@@ -207,6 +233,28 @@ const ensureNonNegative = (field: string, value: number): void => {
   }
 };
 
+const planetBiomeTemperatureCategory = (
+  biome: PlanetBiome,
+): keyof typeof BIOME_CATEGORY_TEMPERATURE_RANGE => {
+  if (PLANET_BIOMES_BY_TEMPERATURE.cold.includes(biome as (typeof PLANET_BIOMES_BY_TEMPERATURE.cold)[number])) {
+    return "cold";
+  }
+
+  if (
+    PLANET_BIOMES_BY_TEMPERATURE.temperate.includes(
+      biome as (typeof PLANET_BIOMES_BY_TEMPERATURE.temperate)[number],
+    )
+  ) {
+    return "temperate";
+  }
+
+  if (PLANET_BIOMES_BY_TEMPERATURE.warm.includes(biome as (typeof PLANET_BIOMES_BY_TEMPERATURE.warm)[number])) {
+    return "warm";
+  }
+
+  return "none";
+};
+
 export class Planet {
   private props: PlanetProps;
 
@@ -217,21 +265,21 @@ export class Planet {
   static create(input: PlanetCreateProps): Planet {
     const type = PlanetTypeValue.create(input.type ?? "solid");
     const size = PlanetSizeValue.create(input.size ?? "medium");
-    const biome = PlanetBiomeValue.create(input.biome ?? "temperate");
+    const biome = PlanetBiomeValue.create(
+      type.toString() === "gas" ? "none" : (input.biome ?? "temperate"),
+    );
 
     ensurePositive("orbital", input.orbital);
 
     const massRange = PLANET_SIZE_MASS[size.toString()];
     const radiusRange = PLANET_SIZE_RADIUS[size.toString()];
-    const temperatureRange = PLANET_BIOME_TEMPERATURE[biome.toString()];
+    const temperatureRange =
+      BIOME_CATEGORY_TEMPERATURE_RANGE[planetBiomeTemperatureCategory(biome.toString())];
 
-    const relativeMass =
-      input.relativeMass ?? randomBetween(massRange[0], massRange[1]);
-    const relativeRadius =
-      input.relativeRadius ?? randomBetween(radiusRange[0], radiusRange[1]);
+    const relativeMass = input.relativeMass ?? randomBetween(massRange[0], massRange[1]);
+    const relativeRadius = input.relativeRadius ?? randomBetween(radiusRange[0], radiusRange[1]);
     const temperature =
-      input.temperature ??
-      randomBetween(temperatureRange[0], temperatureRange[1]);
+      input.temperature ?? randomBetween(temperatureRange[0], temperatureRange[1]);
 
     ensurePositive("relativeMass", relativeMass);
     ensurePositive("relativeRadius", relativeRadius);
@@ -239,8 +287,7 @@ export class Planet {
 
     const absoluteMass = relativeMass * EARTH_MASS;
     const absoluteRadius = relativeRadius * EARTH_RADIUS;
-    const gravity =
-      EARTH_GRAVITY * (relativeMass / (relativeRadius * relativeRadius));
+    const gravity = EARTH_GRAVITY * (relativeMass / (relativeRadius * relativeRadius));
 
     return new Planet({
       id: Uuid.create(input.id),
@@ -358,7 +405,7 @@ export class Planet {
   }
 
   changeBiome(value: PlanetBiome): void {
-    const next = PlanetBiomeValue.create(value);
+    const next = PlanetBiomeValue.create(this.props.type === "gas" ? "none" : value);
     if (next.toString() === this.props.biome) {
       return;
     }

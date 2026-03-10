@@ -409,7 +409,7 @@ describe("GalaxyLifecycleService - planet and moon procedural generation", () =>
     jest.spyOn(service as any, "asteroidCountFromStarter").mockReturnValue(0);
     jest.spyOn(service as any, "randomPlanetType").mockReturnValue("gas");
     jest.spyOn(service as any, "randomPlanetSize").mockReturnValue("supergiant");
-    jest.spyOn(service as any, "randomPlanetBiome").mockReturnValue("ice");
+    jest.spyOn(service as any, "randomPlanetBiome").mockReturnValue("none");
 
     await service.createGalaxyTree(galaxy, repos);
 
@@ -417,7 +417,23 @@ describe("GalaxyLifecycleService - planet and moon procedural generation", () =>
     const createdPlanet = planetSave.mock.calls[0][0];
     expect(createdPlanet.type).toBe("gas");
     expect(createdPlanet.size).toBe("supergiant");
-    expect(createdPlanet.biome).toBe("ice");
+    expect(createdPlanet.biome).toBe("none");
+  });
+
+  it("selects warm biomes for close solid planets", async () => {
+    const service = new GalaxyLifecycleService();
+
+    jest.spyOn(service as any, "randomInt").mockReturnValue(0);
+
+    expect((service as any).randomPlanetBiome("solid", 1, 1)).toBe("desert");
+  });
+
+  it("selects cold biomes for far solid planets", async () => {
+    const service = new GalaxyLifecycleService();
+
+    jest.spyOn(service as any, "randomInt").mockReturnValue(0);
+
+    expect((service as any).randomPlanetBiome("solid", 8, 1)).toBe("ice");
   });
 
   it("applies random moon size during procedural creation", async () => {
