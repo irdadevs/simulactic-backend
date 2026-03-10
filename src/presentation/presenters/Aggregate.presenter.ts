@@ -23,6 +23,15 @@ const maskIdentifier = (value: string | null | undefined): string | null => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
+const maskIp = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  if (value.includes(".")) {
+    const parts = value.split(".");
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.***`;
+  }
+  return maskIdentifier(value);
+};
+
 const sanitizeUnknown = (value: unknown): unknown => {
   if (value == null) return value;
   if (Array.isArray(value)) return value.map((item) => sanitizeUnknown(item));
@@ -165,6 +174,18 @@ export const presentLog = (log: Log) => ({
 });
 
 export const presentLogAdmin = (log: Log) => ({
+  ...presentLog(log),
+  tags: sanitizeUnknown(log.tags),
+  context: sanitizeUnknown(log.context),
+  ipMasked: maskIp(log.ip),
+  userAgent: log.userAgent,
+  fingerprintMasked: maskIdentifier(log.fingerprint),
+  adminNote: log.adminNote,
+  adminNoteUpdatedAt: toIso(log.adminNoteUpdatedAt),
+  adminNoteUpdatedBy: log.adminNoteUpdatedBy,
+});
+
+export const presentLogDashboard = (log: Log) => ({
   ...presentLog(log),
   context: log.context,
   ip: log.ip,

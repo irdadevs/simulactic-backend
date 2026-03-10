@@ -43,14 +43,6 @@ export type TrafficAnalyticsQuery = {
   limitReferrers?: number;
 };
 
-export type TrafficPageViewRecord = {
-  id: string;
-  durationMs: number;
-  occurredAt: Date;
-  tags: Record<string, unknown>;
-  context: Record<string, unknown>;
-};
-
 export type TrafficAnalytics = {
   overview: {
     pageViews: number;
@@ -123,5 +115,5 @@ export interface IMetric {
   findById(id: string): Promise<Metric | null>;
   list(query: ListMetricsQuery): Promise<{ rows: Metric[]; total: number }>;
   dashboard(query: DashboardQuery): Promise<MetricsDashboard>;
-  listTrafficPageViews(query: TrafficAnalyticsQuery): Promise<TrafficPageViewRecord[]>;
+  trafficAnalytics(query: TrafficAnalyticsQuery): Promise<TrafficAnalytics>;
 }

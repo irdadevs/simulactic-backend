@@ -48,11 +48,14 @@ The audit middleware also injects/returns `x-request-id` in every response.
 
 ### Dashboard view and sanitization
 
-Some admin endpoints support `?view=dashboard` to return extended, sanitized payloads:
+Some admin endpoints support `?view=dashboard` to return extended admin payloads:
 
 - Users: includes verification metadata, excludes secrets.
 - Donations: exposes provider type and masked provider identifiers.
-- Logs and metrics: includes additional admin context with sensitive values redacted/masked.
+- Metrics: includes additional admin context with sensitive values redacted.
+- Logs:
+  - `GET /logs?view=dashboard` returns a sanitized list view
+  - `GET /logs/:id?view=dashboard` returns the raw single-log dashboard payload, including unmasked `context`, `tags`, `ip`, and `fingerprint`
 
 ### Supporter badges and progress
 
@@ -246,14 +249,75 @@ Galaxy read model notes:
 - `POST /logs` (Auth + Admin)
 - `GET /logs` (Auth + Admin)
 - `GET /logs/:id` (Auth + Admin)
+- `GET /logs/:id?view=dashboard` (Auth + Admin, raw unmasked admin dashboard payload)
 - `PATCH /logs/:id/resolve` (Auth + Admin)
+- `PATCH /logs/:id/reopen` (Auth + Admin, only for non-`info` logs)
+- `PATCH /logs/:id/admin-note` (Auth + Admin)
+- `DELETE /logs/:id/admin-note` (Auth + Admin)
+
+Log lifecycle notes:
+
+- `info` logs are auto-resolved on creation and cannot be reopened.
+- `PATCH /logs/:id/admin-note` stores or replaces the note and updates:
+  - `admin_note`
+  - `admin_note_updated_at`
+  - `admin_note_updated_by`
+- `DELETE /logs/:id/admin-note` clears `admin_note` and preserves the latest updater audit metadata by writing a new `admin_note_updated_at` / `admin_note_updated_by`.
 
 ### Metrics (Admin)
 
 - `POST /metrics/performance` (Auth + Admin)
 - `GET /metrics/performance` (Auth + Admin)
 - `GET /metrics/performance/dashboard` (Auth + Admin)
+- `GET /metrics/performance/traffic` (Auth + Admin)
 - `GET /metrics/performance/:id` (Auth + Admin)
+
+Traffic analytics endpoint:
+
+- `GET /metrics/performance/traffic`
+- Required query params:
+  - `from`
+  - `to`
+- Optional query params:
+  - `limitRecent`
+  - `limitRoutes`
+  - `limitReferrers`
+- Constraints:
+  - date range must be `<= 366 days`
+  - date-only input is normalized to full UTC-day boundaries:
+    - `from=2026-03-08` => `2026-03-08T00:00:00.000Z`
+    - `to=2026-03-10` => `2026-03-10T23:59:59.999Z`
+
+Traffic analytics response shape:
+
+- `overview`
+  - `pageViews`
+  - `uniqueSessions`
+  - `trackedRoutes`
+  - `externalReferrals`
+- `viewsByDay`
+  - `{ date, views }`
+  - zero-filled inside the requested range
+- `routes`
+  - `{ path, views, uniqueSessions, avgDurationMs }`
+  - route normalization priority:
+    - `context.pathname`
+    - `context.fullPath`
+    - `tags.pathname`
+    - fallback: `unknown`
+- `referrers`
+  - `{ referrer, views }`
+- `recentViews`
+  - `{ id, occurredAt, path, fullPath, referrerHost, sessionId, viewport, durationMs }`
+
+The backend is the source of truth for this aggregation and only uses persisted metrics with:
+
+- `metric_name = "traffic.page_view"`
+
+Implementation notes:
+
+- Aggregation is executed in SQL, not reconstructed from paginated raw metric rows in the frontend.
+- Fresh/dev databases get a dedicated partial index for `traffic.page_view` directly from `005_metrics.sql`.
 
 ## Caching Strategy (Redis)
 
@@ -263,7 +327,7 @@ Galaxy read model notes:
 - Star/Planet/Moon/Asteroid: entity `1 week`, list `1 day`
 - Donation: entity `1 week`, list `6 hours`
 - Log: entity `1 hour`, list `5 minutes`
-- Metric: entity `10 minutes`, list/dashboard `1 minute`
+- Metric: entity `10 minutes`, list/dashboard/traffic `1 minute`
 
 Populate cache invalidation:
 
@@ -292,6 +356,13 @@ Populate cache invalidation:
 - `007_maintenance.sql`
 - `008_security_bans.sql` (security schema, user/IP bans)
 - `009_fx_rates.sql` (daily FX rates for EUR normalization)
+- `010_log_admin_note_fields.sql` (log admin note fields for existing databases)
+
+Single-file migration helper:
+
+```bash
+npm run migrate:one -- src/infra/db/migrations/<file>.sql
+```
 
 ## Local Development
 

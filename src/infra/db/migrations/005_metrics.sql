@@ -51,6 +51,9 @@ CREATE INDEX IF NOT EXISTS idx_perf_metrics_time_type_success
 CREATE INDEX IF NOT EXISTS idx_perf_metrics_active_time
   ON metrics.performance_metrics (occurred_at DESC)
   WHERE is_archived = false;
+CREATE INDEX IF NOT EXISTS idx_perf_metrics_traffic_page_view_active_time
+  ON metrics.performance_metrics (occurred_at DESC)
+  WHERE metric_name = 'traffic.page_view' AND is_archived = false;
 
 CREATE OR REPLACE FUNCTION metrics_soft_archive_before(p_before timestamptz)
 RETURNS bigint AS $$

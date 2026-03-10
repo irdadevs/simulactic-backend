@@ -262,14 +262,14 @@ export default class LogRepo implements ILog {
     return updated;
   }
 
-  async clearAdminNote(id: string): Promise<Log> {
+  async clearAdminNote(id: string, byUserId: string): Promise<Log> {
     const res = await this.db.query(
       `
       UPDATE logs.error_log
-      SET admin_note = NULL, admin_note_updated_at = NULL, admin_note_updated_by = NULL
+      SET admin_note = NULL, admin_note_updated_at = now_utc(), admin_note_updated_by = $2
       WHERE id = $1
       `,
-      [id],
+      [id, byUserId],
     );
 
     if (res.rowCount === 0) {

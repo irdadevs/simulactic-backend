@@ -170,6 +170,19 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     });
   });
 
+  test("normalizes date-only traffic analytics boundaries to full UTC days", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .get("/api/v1/metrics/performance/traffic?from=2026-03-08&to=2026-03-10")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(mocks.trafficAnalytics.execute).toHaveBeenCalledWith({
+      from: new Date("2026-03-08T00:00:00.000Z"),
+      to: new Date("2026-03-10T23:59:59.999Z"),
+    });
+  });
+
   test("forbids global procedural totals for non-admin", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)
@@ -218,7 +231,7 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
       .delete("/api/v1/logs/10/admin-note")
       .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
       .expect(204);
-    expect(mocks.clearAdminNote.execute).toHaveBeenCalledWith("10");
+    expect(mocks.clearAdminNote.execute).toHaveBeenCalledWith("10", IDS.admin);
   });
 
   test("returns raw log dashboard data for admin without masking", async () => {
@@ -236,6 +249,29 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(response.body.fingerprint).toBe("fp_mocked_1234567890");
     expect(response.body).not.toHaveProperty("ipMasked");
     expect(response.body).not.toHaveProperty("fingerprintMasked");
+  });
+
+  test("keeps log list dashboard view sanitized", async () => {
+    const { app, mocks } = buildTestApi();
+    const logRow = await (mocks.findLog.byId as jest.Mock)("10");
+    (mocks.listLogs.execute as jest.Mock).mockResolvedValueOnce({
+      rows: [logRow],
+      total: 1,
+    });
+
+    const response = await request(app)
+      .get("/api/v1/logs?view=dashboard")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .expect(200);
+
+    expect(response.body.rows[0].context).toEqual({
+      reason: "ownership_denied",
+      authorization: "[REDACTED]",
+    });
+    expect(response.body.rows[0].ipMasked).toBe("192.168.1.***");
+    expect(response.body.rows[0].fingerprintMasked).toBe("fp_m...7890");
+    expect(response.body.rows[0]).not.toHaveProperty("ip");
+    expect(response.body.rows[0]).not.toHaveProperty("fingerprint");
   });
 
   test("allows authenticated users to create donation checkout sessions", async () => {

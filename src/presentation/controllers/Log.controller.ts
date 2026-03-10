@@ -12,7 +12,7 @@ import { ListLogsDTO } from "../security/logs/ListLogs.dto";
 import { SetAdminNoteDTO } from "../security/logs/SetAdminNote.dto";
 import errorHandler from "../../utils/errors/Errors.handler";
 import invalidBody from "../../utils/invalidBody";
-import { presentLog, presentLogAdmin } from "../presenters/Aggregate.presenter";
+import { presentLog, presentLogAdmin, presentLogDashboard } from "../presenters/Aggregate.presenter";
 
 export class LogController {
   constructor(
@@ -35,7 +35,7 @@ export class LogController {
       if (!parsed.success) return invalidBody(res, parsed.error);
       const created = await this.createLog.execute(parsed.data);
       if (this.wantsDashboardView(req)) {
-        return res.status(201).json(presentLogAdmin(created));
+        return res.status(201).json(presentLogDashboard(created));
       }
       return res.status(201).json(presentLog(created));
     } catch (err: unknown) {
@@ -61,7 +61,7 @@ export class LogController {
       const log = await this.findLog.byId(parsed.data.id);
       if (!log) return res.status(200).json(null);
       if (this.wantsDashboardView(req)) {
-        return res.status(200).json(presentLogAdmin(log));
+        return res.status(200).json(presentLogDashboard(log));
       }
       return res.status(200).json(presentLog(log));
     } catch (err: unknown) {
@@ -97,7 +97,7 @@ export class LogController {
     try {
       const parsed = FindLogByIdDTO.safeParse(req.params);
       if (!parsed.success) return invalidBody(res, parsed.error);
-      await this.clearAdminNote.execute(parsed.data.id);
+      await this.clearAdminNote.execute(parsed.data.id, req.auth.userId);
       return res.status(204).send();
     } catch (err: unknown) {
       return errorHandler(err, res);

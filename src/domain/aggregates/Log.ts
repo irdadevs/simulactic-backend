@@ -150,10 +150,10 @@ export class Log {
     this.props.adminNoteUpdatedBy = Uuid.create(byUserId).toString();
   }
 
-  clearAdminNote(): void {
+  clearAdminNote(byUserId: string, at: Date = new Date()): void {
     this.props.adminNote = null;
-    this.props.adminNoteUpdatedAt = null;
-    this.props.adminNoteUpdatedBy = null;
+    this.props.adminNoteUpdatedAt = at;
+    this.props.adminNoteUpdatedBy = Uuid.create(byUserId).toString();
   }
 
   canBeReopened(): boolean {
