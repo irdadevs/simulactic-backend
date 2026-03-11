@@ -54,8 +54,8 @@ export class PaymentGatewayRepo implements IPaymentGateway {
             product_data: {
               name:
                 params.donationType === "monthly"
-                  ? "Monthly Simulactic Donation"
-                  : "Simulactic Donation",
+                  ? "Simulactic Monthly Supporter"
+                  : "Support Simulactic",
             },
             ...(params.donationType === "monthly"
               ? { recurring: { interval: "month" as const } }
