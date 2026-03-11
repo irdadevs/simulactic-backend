@@ -79,35 +79,34 @@ export class PaymentGatewayRepo implements IPaymentGateway {
 
   async retrieveCheckoutSession(sessionId: string): Promise<RetrievedCheckoutSession> {
     const client = this.requireClient();
+
     const session = await client.checkout.sessions.retrieve(sessionId, {
       expand: ["subscription"],
     });
 
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : (session.subscription?.id ?? null);
+
     let periodStart: Date | null = null;
     let periodEnd: Date | null = null;
 
-    const subscription = session.subscription;
-    if (subscription && typeof subscription !== "string") {
-      const recurring = subscription as unknown as {
-        current_period_start?: number;
-        current_period_end?: number;
-      };
-      periodStart = recurring.current_period_start
-        ? new Date(recurring.current_period_start * 1000)
-        : null;
-      periodEnd = recurring.current_period_end
-        ? new Date(recurring.current_period_end * 1000)
-        : null;
-    }
+    if (subscriptionId) {
+      const subscription = await client.subscriptions.retrieve(subscriptionId);
 
-    // TEST AND DELETE DEBUGGING LOGS
-    console.log("[STRIPE] checkout session id:", session.id);
-    console.log("[STRIPE] checkout status:", session.status);
-    console.log("[STRIPE] payment_status:", session.payment_status);
-    console.log("[STRIPE] customer:", session.customer);
-    console.log("[STRIPE] subscription:", session.subscription);
-    console.log("[STRIPE] periodStart:", periodStart);
-    console.log("[STRIPE] periodEnd:", periodEnd);
+      console.log("[STRIPE] subscription fetched separately =", subscription);
+
+      console.log("[STRIPE] subscription keys =", Object.keys(subscription as any));
+      console.log("[STRIPE] subscription json =", JSON.stringify(subscription, null, 2));
+
+      // Aquí inspeccionas el shape real y sacas los campos correctos
+      const maybeStart = (subscription as any).current_period_start;
+      const maybeEnd = (subscription as any).current_period_end;
+
+      periodStart = maybeStart ? new Date(maybeStart * 1000) : null;
+      periodEnd = maybeEnd ? new Date(maybeEnd * 1000) : null;
+    }
 
     return {
       sessionId: session.id,
@@ -115,10 +114,7 @@ export class PaymentGatewayRepo implements IPaymentGateway {
       paymentStatus: session.payment_status as "paid" | "unpaid" | "no_payment_required",
       customerId:
         typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null),
-      subscriptionId:
-        typeof session.subscription === "string"
-          ? session.subscription
-          : (session.subscription?.id ?? null),
+      subscriptionId,
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
     };
