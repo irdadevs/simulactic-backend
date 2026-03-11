@@ -150,6 +150,16 @@ export function buildTestApi(): {
     },
     platformService: {
       signup: jest.fn(async () => buildMockUser({ isVerified: false, verifiedAt: null })),
+      createAdmin: jest.fn(async () =>
+        buildMockUser({
+          id: "44444444-4444-4444-8444-444444444444",
+          email: "admin.created@test.com",
+          username: "admin_created",
+          role: "Admin",
+          isVerified: true,
+          verifiedAt: new Date("2026-01-03T00:00:00.000Z"),
+        }),
+      ),
       changeEmail: jest.fn(async () => undefined),
       changePassword: jest.fn(async () => undefined),
       changeUsername: jest.fn(async () => undefined),

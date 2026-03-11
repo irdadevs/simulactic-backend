@@ -199,6 +199,34 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(Number(response.body.total)).toBeGreaterThanOrEqual(2);
   });
 
+  test("admin can create another verified admin that can log in immediately", async () => {
+    const adminLogin = await login(admin.email);
+    const created = await request(app)
+      .post("/api/v1/users/admins")
+      .set("Cookie", adminLogin.cookies)
+      .send({
+        email: "e2e.admin.created@test.local",
+        username: "e2e_admin_created",
+        rawPassword: password,
+      })
+      .expect(201);
+
+    expect(created.body.user.role).toBe("Admin");
+    expect(created.body.user.verified).toBe(true);
+    expect(created.body.user.verifiedAt).toEqual(expect.any(String));
+
+    const createdAdminLogin = await request(app)
+      .post("/api/v1/users/login")
+      .send({
+        email: "e2e.admin.created@test.local",
+        rawPassword: password,
+      })
+      .expect(200);
+
+    expect(createdAdminLogin.body.user.role).toBe("Admin");
+    expect(createdAdminLogin.body.user.verified).toBe(true);
+  });
+
   test("forbids non-owner access to another user's galaxy and nested resources", async () => {
     const userALogin = await login(userA.email);
 

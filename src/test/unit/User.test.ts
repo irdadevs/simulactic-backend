@@ -3,6 +3,7 @@ import { ISession } from "../../app/interfaces/Session.port";
 import { IUser, UserListItem } from "../../app/interfaces/User.port";
 import { UserCacheService } from "../../app/app-services/users/UserCache.service";
 import { ChangePassword } from "../../app/use-cases/commands/users/ChangePassword.command";
+import { CreateAdmin } from "../../app/use-cases/commands/users/CreateAdmin.command";
 import { LoginUser } from "../../app/use-cases/commands/users/LoginUser.command";
 import { User, Uuid } from "../../domain/aggregates/User";
 
@@ -396,6 +397,61 @@ describe("LoginUser command", () => {
     expect(result.isArchived).toBe(false);
     expect(result.isDeleted).toBe(false);
     expect(repo.save).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CreateAdmin command", () => {
+  it("creates a verified admin without verification code lifecycle", async () => {
+    const repo: IUser = {
+      save: jest.fn(async (u): Promise<User> => u),
+      findById: jest.fn(async (): Promise<User | null> => null),
+      findByEmail: jest.fn(async (): Promise<User | null> => null),
+      findByUsername: jest.fn(async (): Promise<User | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: UserListItem[]; total: number }> => ({
+          rows: [],
+          total: 0,
+        }),
+      ),
+      changeEmail: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changePassword: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changeUsername: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changeRole: jest.fn(async (): Promise<User> => User.create(validInput)),
+      verify: jest.fn(async (): Promise<void> => undefined),
+      softDelete: jest.fn(async (): Promise<void> => undefined),
+      restore: jest.fn(async (): Promise<void> => undefined),
+      touchActivity: jest.fn(async (): Promise<void> => undefined),
+      archiveInactive: jest.fn(
+        async (): Promise<Array<{ id: string; email: string; username: string }>> => [],
+      ),
+    };
+
+    const hasher: IHasher = {
+      hash: jest.fn(async () => "hashed-admin-password-123"),
+      compare: jest.fn(async () => true),
+    };
+
+    const userCache = {
+      setUser: jest.fn(async (): Promise<void> => undefined),
+      invalidateList: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+
+    const command = new CreateAdmin(repo, hasher, userCache);
+    const user = await command.execute({
+      email: "new-admin@test.com",
+      username: "new_admin",
+      rawPassword: "Passw0rd!123",
+    });
+
+    expect(hasher.hash).toHaveBeenCalledWith("Passw0rd!123");
+    expect(user.role).toBe("Admin");
+    expect(user.isVerified).toBe(true);
+    expect(user.verifiedAt).toBeInstanceOf(Date);
+    expect(user.verificationCode).toBeNull();
+    expect(user.verificationCodeExpiresAt).toBeNull();
+    expect(repo.save).toHaveBeenCalledWith(user);
+    expect(userCache.setUser).toHaveBeenCalledWith(user);
+    expect(userCache.invalidateList).toHaveBeenCalled();
   });
 });
 

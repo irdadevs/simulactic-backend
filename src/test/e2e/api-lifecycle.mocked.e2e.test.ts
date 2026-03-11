@@ -85,6 +85,38 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.listUsers.execute).toHaveBeenCalled();
   });
 
+  test("allows only admins to create admins and forces the admin lifecycle", async () => {
+    const { app, mocks } = buildTestApi();
+
+    await request(app)
+      .post("/api/v1/users/admins")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .send({
+        email: "new.admin@test.com",
+        username: "new_admin",
+        rawPassword: "Passw0rd!123",
+      })
+      .expect(403);
+
+    const response = await request(app)
+      .post("/api/v1/users/admins")
+      .set("Authorization", makeAuthHeader(IDS.admin, "Admin"))
+      .send({
+        email: "new.admin@test.com",
+        username: "new_admin",
+        rawPassword: "Passw0rd!123",
+      })
+      .expect(201);
+
+    expect(mocks.platformService.createAdmin).toHaveBeenCalledWith({
+      email: "new.admin@test.com",
+      username: "new_admin",
+      rawPassword: "Passw0rd!123",
+    });
+    expect(response.body.user.role).toBe("Admin");
+    expect(response.body.user.verified).toBe(true);
+  });
+
   test("forbids non-owner from mutating systems", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)

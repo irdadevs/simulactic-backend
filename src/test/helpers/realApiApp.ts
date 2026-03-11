@@ -35,6 +35,7 @@ import FindUser from "../../app/use-cases/queries/users/FindUser.query";
 import { ListUsers } from "../../app/use-cases/queries/users/ListUsers.query";
 import { LoginUser } from "../../app/use-cases/commands/users/LoginUser.command";
 import { SignupUser } from "../../app/use-cases/commands/users/SignupUser.command";
+import { CreateAdmin } from "../../app/use-cases/commands/users/CreateAdmin.command";
 import { VerifyUser } from "../../app/use-cases/commands/users/VerifyUser.command";
 import { ResendVerificationCode } from "../../app/use-cases/commands/users/ResendVerificationCode.command";
 import { ChangeEmail } from "../../app/use-cases/commands/users/ChangeEmail.command";
@@ -210,6 +211,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const healthCheck = new HealthQuery();
   const loginUser = new LoginUser(userRepo, hasher);
   const signupUser = new SignupUser(userRepo, hasher, mailer, userCache);
+  const createAdminUser = new CreateAdmin(userRepo, hasher, userCache);
   const verifyUser = new VerifyUser(userRepo, hasher, userCache);
   const resendVerificationCode = new ResendVerificationCode(userRepo, hasher, mailer, userCache);
   const changeEmailUser = new ChangeEmail(userRepo, userCache);
@@ -402,6 +404,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   );
   const platformService = new PlatformService(
     signupUser,
+    createAdminUser,
     verifyUser,
     resendVerificationCode,
     changeEmailUser,

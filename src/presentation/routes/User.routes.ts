@@ -43,6 +43,12 @@ export function UserRoutes(
       handler: ctrl.signup,
     },
     {
+      method: "post",
+      path: "/admins",
+      before: [auth.requireAuth(), auth.requireRoles("Admin")],
+      handler: ctrl.createAdmin,
+    },
+    {
       method: "patch",
       path: "/me/email",
       before: [auth.requireAuth()],

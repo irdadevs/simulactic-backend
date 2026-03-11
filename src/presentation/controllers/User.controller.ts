@@ -7,6 +7,7 @@ import { ChangeEmailDTO } from "../security/users/ChangeEmail.dto";
 import { ChangePasswordDTO } from "../security/users/ChangePassword.dto";
 import { ChangeRoleDTO } from "../security/users/ChangeRole.dto";
 import { ChangeUsernameDTO } from "../security/users/ChangeUsername.dto";
+import { CreateAdminDTO } from "../security/users/CreateAdmin.dto";
 import { FindUserByEmailDTO } from "../security/users/FindUserByEmail.dto";
 import { FindUserByIdDTO } from "../security/users/FindUserById.dto";
 import { FindUserByUsernameDTO } from "../security/users/FindUserByUsername.dto";
@@ -274,6 +275,23 @@ export class UserController {
       }
 
       const user = await this.platformService.signup(parsed.data);
+
+      return res.status(201).json({
+        user: this.toPublicUserFromAggregate(user),
+      });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public createAdmin = async (req: Request, res: Response) => {
+    try {
+      const parsed = CreateAdminDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return invalidBody(res, parsed.error);
+      }
+
+      const user = await this.platformService.createAdmin(parsed.data);
 
       return res.status(201).json({
         user: this.toPublicUserFromAggregate(user),
