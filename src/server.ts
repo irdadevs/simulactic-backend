@@ -126,6 +126,7 @@ import { ListMetrics } from "./app/use-cases/queries/metrics/ListMetrics.query";
 import { MetricsDashboardQuery } from "./app/use-cases/queries/metrics/MetricsDashboard.query";
 import { TrafficAnalyticsQueryService } from "./app/use-cases/queries/metrics/TrafficAnalytics.query";
 import { CreateDonationCheckout } from "./app/use-cases/commands/donations/CreateDonationCheckout.command";
+import { CreateCustomerPortalSession } from "./app/use-cases/commands/donations/CreateCustomerPortalSession.command";
 import { ConfirmDonationBySession } from "./app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "./app/use-cases/commands/donations/CancelDonation.command";
 import { FindDonation } from "./app/use-cases/queries/donations/FindDonation.query";
@@ -330,6 +331,7 @@ async function start(): Promise<void> {
       paymentGateway,
       donationCache,
     );
+    const createCustomerPortalSession = new CreateCustomerPortalSession(paymentGateway);
     const confirmDonationBySession = new ConfirmDonationBySession(
       donationRepo,
       paymentGateway,
@@ -614,6 +616,7 @@ async function start(): Promise<void> {
     );
     const donationController = new DonationController(
       createDonationCheckout,
+      createCustomerPortalSession,
       confirmDonationBySession,
       cancelDonation,
       findDonation,

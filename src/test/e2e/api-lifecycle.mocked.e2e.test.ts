@@ -335,6 +335,26 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.createDonationCheckout.execute).toHaveBeenCalled();
   });
 
+  test("allows donation owners to create a Stripe customer portal session", async () => {
+    const { app, mocks } = buildTestApi();
+    const response = await request(app)
+      .post("/api/v1/donations/dddddddd-dddd-4ddd-8ddd-dddddddddddd/portal")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .send({ returnUrl: "https://app.local/account" })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      url: "https://billing.stripe.com/p/session_mock",
+    });
+    expect(mocks.createCustomerPortalSession.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        userId: IDS.userA,
+      }),
+      { returnUrl: "https://app.local/account" },
+    );
+  });
+
   test("rejects supporter badge catalog when auth is missing", async () => {
     const { app } = buildTestApi();
     await request(app).get("/api/v1/donations/badges").expect(401);

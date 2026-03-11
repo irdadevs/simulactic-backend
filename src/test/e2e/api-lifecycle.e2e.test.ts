@@ -734,6 +734,36 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
     expect(progress.body.updatedAt).toEqual(expect.any(String));
   });
 
+  test("donation owner can create a customer portal session", async () => {
+    const userALogin = await login(userA.email);
+
+    const created = await request(app)
+      .post("/api/v1/donations/checkout")
+      .set("Cookie", userALogin.cookies)
+      .send({
+        donationType: "monthly",
+        amountMinor: 999,
+        currency: "USD",
+        successUrl: "https://app.local/success",
+        cancelUrl: "https://app.local/cancel",
+      })
+      .expect(201);
+
+    await request(app)
+      .post(`/api/v1/donations/checkout/${created.body.sessionId}/confirm`)
+      .set("Cookie", userALogin.cookies)
+      .expect(204);
+
+    const portal = await request(app)
+      .post(`/api/v1/donations/${created.body.donationId}/portal`)
+      .set("Cookie", userALogin.cookies)
+      .send({ returnUrl: "https://app.local/account" })
+      .expect(200);
+
+    expect(portal.body.url).toContain("https://billing.test/session/");
+    expect(portal.body.url).toContain(encodeURIComponent("https://app.local/account"));
+  });
+
   test("supporter badge catalog requires auth and returns badge definitions", async () => {
     await request(app).get("/api/v1/donations/badges").expect(401);
 

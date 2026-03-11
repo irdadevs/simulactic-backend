@@ -23,6 +23,12 @@ export function DonationRoutes(
     },
     {
       method: "post",
+      path: "/:id/portal",
+      before: [auth.requireAuth()],
+      handler: ctrl.createPortalSession,
+    },
+    {
+      method: "post",
       path: "/checkout/:sessionId/confirm",
       before: [auth.requireAuth()],
       handler: ctrl.confirmBySession,

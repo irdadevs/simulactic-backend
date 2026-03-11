@@ -110,6 +110,7 @@ import { ListMetrics } from "../../app/use-cases/queries/metrics/ListMetrics.que
 import { MetricsDashboardQuery } from "../../app/use-cases/queries/metrics/MetricsDashboard.query";
 import { TrafficAnalyticsQueryService } from "../../app/use-cases/queries/metrics/TrafficAnalytics.query";
 import { CreateDonationCheckout } from "../../app/use-cases/commands/donations/CreateDonationCheckout.command";
+import { CreateCustomerPortalSession } from "../../app/use-cases/commands/donations/CreateCustomerPortalSession.command";
 import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
 import { FindDonation } from "../../app/use-cases/queries/donations/FindDonation.query";
@@ -167,6 +168,15 @@ class FakePaymentGateway implements IPaymentGateway {
   }
 
   async cancelSubscription(): Promise<void> {}
+
+  async createCustomerPortalSession(params: {
+    customerId: string;
+    returnUrl: string;
+  }): Promise<{ url: string }> {
+    return {
+      url: `https://billing.test/session/${params.customerId}?return=${encodeURIComponent(params.returnUrl)}`,
+    };
+  }
 }
 
 export type RealApiApp = {
@@ -264,6 +274,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     paymentGateway,
     donationCache,
   );
+  const createCustomerPortalSession = new CreateCustomerPortalSession(paymentGateway);
   const confirmDonationBySession = new ConfirmDonationBySession(
     donationRepo,
     paymentGateway,
@@ -528,6 +539,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   );
   const donationController = new DonationController(
     createDonationCheckout,
+    createCustomerPortalSession,
     confirmDonationBySession,
     cancelDonation,
     findDonation,
