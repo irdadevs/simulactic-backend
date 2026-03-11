@@ -660,7 +660,7 @@ async function start(): Promise<void> {
     // --------------------
     // 3️⃣ Start listening
     // --------------------
-    httpServer = app.listen(PORT, () => {
+    httpServer = app.listen(PORT, "0.0.0.0", () => {
       console.log(
         `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.successColor(
           `Listening on port ${PORT}`,
