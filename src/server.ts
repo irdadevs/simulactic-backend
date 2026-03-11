@@ -340,7 +340,10 @@ async function start(): Promise<void> {
       paymentGateway,
       donationCache,
     );
-    const createCustomerPortalSession = new CreateCustomerPortalSession(paymentGateway);
+    const createCustomerPortalSession = new CreateCustomerPortalSession(
+      donationRepo,
+      paymentGateway,
+    );
     const confirmDonationBySession = new ConfirmDonationBySession(
       donationRepo,
       paymentGateway,

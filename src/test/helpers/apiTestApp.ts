@@ -690,7 +690,7 @@ export function buildTestApi(): {
     mocks.dashboardMetrics as any,
     mocks.trafficAnalytics as any,
   );
-  const donationController = new DonationController(
+    const donationController = new DonationController(
     mocks.createDonationCheckout as any,
     mocks.createCustomerPortalSession as any,
     mocks.confirmDonationBySession as any,

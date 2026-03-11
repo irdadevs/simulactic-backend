@@ -51,6 +51,7 @@ export interface IDonation {
   findById(id: string): Promise<Donation | null>;
   findByProviderSessionId(sessionId: string): Promise<Donation | null>;
   findByProviderSubscriptionId(subscriptionId: string): Promise<Donation | null>;
+  findLatestByUserIdWithProviderCustomerId(userId: string): Promise<Donation | null>;
   list(query: ListDonationsQuery): Promise<{ rows: Donation[]; total: number }>;
   listSupporterBadges(): Promise<{ rows: SupporterBadgeDefinition[]; total: number }>;
   getSupporterProgress(userId: string): Promise<SupporterProgress>;

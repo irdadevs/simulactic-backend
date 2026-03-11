@@ -273,7 +273,7 @@ Galaxy read model notes:
 
 - `GET /donations/badges` (Auth)
 - `POST /donations/checkout` (Auth)
-- `POST /donations/:id/portal` (Auth)
+- `POST /donations/portal` (Auth)
 - `POST /donations/checkout/:sessionId/confirm` (Auth)
 - `POST /donations/:id/cancel` (Auth)
 - `GET /donations` (Auth)
@@ -315,11 +315,11 @@ Webhook lifecycle notes:
 
 Donation portal contract:
 
-- `POST /donations/:id/portal` requires body:
+- `POST /donations/portal` requires body:
   - `{ "returnUrl": "string(url)" }`
 - Access rules:
-  - donation owner or admin only
-- The donation must have a Stripe `providerCustomerId`.
+  - authenticated user only
+- The backend resolves the current user's latest persisted donation with a Stripe `providerCustomerId`.
 - Returns:
   - `{ "url": "https://billing.stripe.com/..." }`
 

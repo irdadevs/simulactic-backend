@@ -139,6 +139,8 @@ describe("Donation commands", () => {
       findById: async (_id: string): Promise<Donation | null> => null,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
       findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => null,
+      findLatestByUserIdWithProviderCustomerId: async (_userId: string): Promise<Donation | null> =>
+        null,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -208,6 +210,9 @@ describe("Donation commands", () => {
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => donation,
       findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => donation,
+      findLatestByUserIdWithProviderCustomerId: async (
+        _userId: string,
+      ): Promise<Donation | null> => donation,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -300,6 +305,9 @@ describe("Donation commands", () => {
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
       findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => donation,
+      findLatestByUserIdWithProviderCustomerId: async (
+        _userId: string,
+      ): Promise<Donation | null> => donation,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -360,6 +368,9 @@ describe("Donation commands", () => {
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
       findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => donation,
+      findLatestByUserIdWithProviderCustomerId: async (
+        _userId: string,
+      ): Promise<Donation | null> => donation,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -419,6 +430,24 @@ describe("Donation commands", () => {
       url: "https://billing.stripe.com/p/session_portal",
     }));
 
+    const repo: IDonation = {
+      save: async (updated: Donation): Promise<Donation> => updated,
+      findById: async (_id: string): Promise<Donation | null> => donation,
+      findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => donation,
+      findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> =>
+        donation,
+      findLatestByUserIdWithProviderCustomerId: async (
+        _userId: string,
+      ): Promise<Donation | null> => donation,
+      list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
+        rows: [],
+        total: 0,
+      }),
+      listSupporterBadges: async () => ({ rows: [], total: 0 }),
+      getSupporterProgress: async (_userId: string) => emptyProgress,
+      refreshSupporterProgress: async (_userId: string) => emptyProgress,
+    };
+
     const gateway: IPaymentGateway = {
       createCheckoutSession: async (): Promise<PaymentSessionResult> => ({
         sessionId: "cs_unused",
@@ -440,8 +469,8 @@ describe("Donation commands", () => {
       }),
     };
 
-    const command = new CreateCustomerPortalSession(gateway);
-    const result = await command.execute(donation, {
+    const command = new CreateCustomerPortalSession(repo, gateway);
+    const result = await command.execute(donation.userId, {
       returnUrl: "https://app.local/dashboard",
     });
 
@@ -508,6 +537,7 @@ describe("Donation commands", () => {
       findById: jest.fn(async (): Promise<Donation | null> => null),
       findByProviderSessionId: jest.fn(async (): Promise<Donation | null> => null),
       findByProviderSubscriptionId: jest.fn(async (): Promise<Donation | null> => null),
+      findLatestByUserIdWithProviderCustomerId: jest.fn(async (): Promise<Donation | null> => null),
       list: jest.fn(
         async (): Promise<{ rows: Donation[]; total: number }> => ({ rows: [], total: 0 }),
       ),

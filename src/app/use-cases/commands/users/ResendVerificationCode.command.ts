@@ -35,7 +35,7 @@ export class ResendVerificationCode {
 
     await this.mailer.send(
       email,
-      "Galactic API - Verification code",
+      "Simulactic - Verification code",
       code,
     );
   }

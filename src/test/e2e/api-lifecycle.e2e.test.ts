@@ -755,7 +755,7 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
       .expect(204);
 
     const portal = await request(app)
-      .post(`/api/v1/donations/${created.body.donationId}/portal`)
+      .post("/api/v1/donations/portal")
       .set("Cookie", userALogin.cookies)
       .send({ returnUrl: "https://app.local/account" })
       .expect(200);

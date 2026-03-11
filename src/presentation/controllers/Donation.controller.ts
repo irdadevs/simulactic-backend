@@ -9,9 +9,9 @@ import { ListSupporterBadges } from "../../app/use-cases/queries/donations/ListS
 import { CreateDonationCheckoutDTO } from "../security/donations/CreateDonationCheckout.dto";
 import { CreateCustomerPortalSessionDTO } from "../security/donations/CreateCustomerPortalSession.dto";
 import { ConfirmDonationBySessionDTO } from "../security/donations/ConfirmDonationBySession.dto";
-import { FindDonationByIdDTO } from "../security/donations/FindDonationById.dto";
 import { ListDonationsDTO } from "../security/donations/ListDonations.dto";
 import { CancelDonationDTO } from "../security/donations/CancelDonation.dto";
+import { FindDonationByIdDTO } from "../security/donations/FindDonationById.dto";
 import invalidBody from "../../utils/invalidBody";
 import errorHandler from "../../utils/errors/Errors.handler";
 import { presentDonation, presentDonationAdmin } from "../presenters/Aggregate.presenter";
@@ -53,22 +53,10 @@ export class DonationController {
 
   public createPortalSession = async (req: Request, res: Response) => {
     try {
-      const parsedParams = FindDonationByIdDTO.safeParse(req.params);
-      if (!parsedParams.success) return invalidBody(res, parsedParams.error);
-
       const parsedBody = CreateCustomerPortalSessionDTO.safeParse(req.body);
       if (!parsedBody.success) return invalidBody(res, parsedBody.error);
 
-      const donation = await this.findDonation.byId(parsedParams.data.id);
-      if (!donation) {
-        return res.status(404).json({ ok: false, error: "NOT_FOUND" });
-      }
-
-      if (!this.isAdmin(req) && donation.userId !== req.auth.userId) {
-        return res.status(403).json({ ok: false, error: "FORBIDDEN" });
-      }
-
-      const result = await this.createCustomerPortalSession.execute(donation, parsedBody.data);
+      const result = await this.createCustomerPortalSession.execute(req.auth.userId, parsedBody.data);
       return res.status(200).json(result);
     } catch (err: unknown) {
       return errorHandler(err, res);
