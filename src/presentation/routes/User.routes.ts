@@ -27,6 +27,11 @@ export function UserRoutes(
     },
     {
       method: "post",
+      path: "/password/reset",
+      handler: ctrl.resetPassword,
+    },
+    {
+      method: "post",
       path: "/logout",
       before: [auth.requireAuth()],
       handler: ctrl.logout,

@@ -27,4 +27,8 @@ export interface IPaymentGateway {
   }): Promise<PaymentSessionResult>;
   retrieveCheckoutSession(sessionId: string): Promise<RetrievedCheckoutSession>;
   cancelSubscription(subscriptionId: string): Promise<void>;
+  createCustomerPortalSession(params: {
+    customerId: string;
+    returnUrl: string;
+  }): Promise<{ url: string }>;
 }

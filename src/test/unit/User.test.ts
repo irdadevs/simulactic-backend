@@ -1,10 +1,12 @@
 import { IHasher } from "../../app/interfaces/Hasher.port";
+import { IMailer } from "../../app/interfaces/Mailer.port";
 import { ISession } from "../../app/interfaces/Session.port";
 import { IUser, UserListItem } from "../../app/interfaces/User.port";
 import { UserCacheService } from "../../app/app-services/users/UserCache.service";
 import { ChangePassword } from "../../app/use-cases/commands/users/ChangePassword.command";
 import { CreateAdmin } from "../../app/use-cases/commands/users/CreateAdmin.command";
 import { LoginUser } from "../../app/use-cases/commands/users/LoginUser.command";
+import { ResetPassword } from "../../app/use-cases/commands/users/ResetPassword.command";
 import { User, Uuid } from "../../domain/aggregates/User";
 
 const validInput = {
@@ -452,6 +454,80 @@ describe("CreateAdmin command", () => {
     expect(repo.save).toHaveBeenCalledWith(user);
     expect(userCache.setUser).toHaveBeenCalledWith(user);
     expect(userCache.invalidateList).toHaveBeenCalled();
+  });
+});
+
+describe("ResetPassword command", () => {
+  it("replaces the user password, revokes sessions, and emails the temporary password", async () => {
+    const user = User.create({
+      id: "77777777-7777-4777-8777-777777777777",
+      email: "reset@test.com",
+      passwordHash: "stored-password-hash-123",
+      username: "reset_user",
+      isVerified: true,
+    });
+
+    const repo: IUser = {
+      save: jest.fn(async (u): Promise<User> => u),
+      findById: jest.fn(async (): Promise<User | null> => null),
+      findByEmail: jest.fn(async (): Promise<User | null> => user),
+      findByUsername: jest.fn(async (): Promise<User | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: UserListItem[]; total: number }> => ({
+          rows: [],
+          total: 0,
+        }),
+      ),
+      changeEmail: jest.fn(async (): Promise<User> => user),
+      changePassword: jest.fn(async (): Promise<User> => user),
+      changeUsername: jest.fn(async (): Promise<User> => user),
+      changeRole: jest.fn(async (): Promise<User> => user),
+      verify: jest.fn(async (): Promise<void> => undefined),
+      softDelete: jest.fn(async (): Promise<void> => undefined),
+      restore: jest.fn(async (): Promise<void> => undefined),
+      touchActivity: jest.fn(async (): Promise<void> => undefined),
+      archiveInactive: jest.fn(
+        async (): Promise<Array<{ id: string; email: string; username: string }>> => [],
+      ),
+    };
+
+    const hasher: IHasher = {
+      hash: jest.fn(async () => "temporary-password-hash-456"),
+      compare: jest.fn(async () => true),
+    };
+
+    const mailer: IMailer = {
+      genCode: jest.fn(() => "Temp1234"),
+      send: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const sessionRepo: ISession = {
+      create: jest.fn(async (): Promise<void> => undefined),
+      save: jest.fn(async (): Promise<void> => undefined),
+      findById: jest.fn(async (): Promise<null> => null),
+      revoke: jest.fn(async (): Promise<void> => undefined),
+      revokeAllForUser: jest.fn(async (): Promise<void> => undefined),
+      updateRefreshTokenHash: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const userCache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+
+    const command = new ResetPassword(repo, hasher, mailer, sessionRepo, userCache);
+    await command.execute({ email: "reset@test.com" });
+
+    expect(mailer.genCode).toHaveBeenCalledWith(8);
+    expect(hasher.hash).toHaveBeenCalledWith("Temp1234");
+    expect(user.passwordHash).toBe("temporary-password-hash-456");
+    expect(repo.save).toHaveBeenCalledWith(user);
+    expect(userCache.invalidateForMutation).toHaveBeenCalledWith(user);
+    expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith(user.id);
+    expect(mailer.send).toHaveBeenCalledWith(
+      expect.objectContaining({ toString: expect.any(Function) }),
+      "Galactic API - Password reset",
+      "Temp1234",
+    );
   });
 });
 

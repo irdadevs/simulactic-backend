@@ -7,6 +7,7 @@ import {
   RetrievedCheckoutSession,
 } from "../../app/interfaces/PaymentGateway.port";
 import { CreateDonationCheckout } from "../../app/use-cases/commands/donations/CreateDonationCheckout.command";
+import { CreateCustomerPortalSession } from "../../app/use-cases/commands/donations/CreateCustomerPortalSession.command";
 import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
 
@@ -153,6 +154,9 @@ describe("Donation commands", () => {
         currentPeriodEnd: null,
       }),
       cancelSubscription: async (_subscriptionId: string): Promise<void> => undefined,
+      createCustomerPortalSession: async (): Promise<{ url: string }> => ({
+        url: "https://billing.stripe.com/p/session_test",
+      }),
     };
 
     const cache = {
@@ -222,6 +226,9 @@ describe("Donation commands", () => {
         currentPeriodEnd: new Date("2026-02-01T00:00:00.000Z"),
       }),
       cancelSubscription: async (_subscriptionId: string): Promise<void> => undefined,
+      createCustomerPortalSession: async (): Promise<{ url: string }> => ({
+        url: "https://billing.stripe.com/p/session_test",
+      }),
     };
 
     const cache = {
@@ -303,6 +310,9 @@ describe("Donation commands", () => {
         currentPeriodEnd: null,
       }),
       cancelSubscription: cancelSubscriptionSpy,
+      createCustomerPortalSession: async (): Promise<{ url: string }> => ({
+        url: "https://billing.stripe.com/p/session_test",
+      }),
     };
 
     const cache = {
@@ -356,6 +366,9 @@ describe("Donation commands", () => {
         currentPeriodEnd: null,
       }),
       cancelSubscription: async (_subscriptionId: string): Promise<void> => undefined,
+      createCustomerPortalSession: async (): Promise<{ url: string }> => ({
+        url: "https://billing.stripe.com/p/session_test",
+      }),
     };
 
     const cache = {
@@ -364,5 +377,54 @@ describe("Donation commands", () => {
 
     const command = new CancelDonation(repo, gateway, cache);
     await assertErrorCode(async () => command.execute(donation.id), "PRESENTATION.INVALID_FIELD");
+  });
+
+  it("creates a Stripe customer portal session for recurring donations with a customer id", async () => {
+    const donation = Donation.create({
+      id: "abababab-abab-4bab-8bab-abababababab",
+      userId: "11111111-1111-4111-8111-111111111111",
+      donationType: "monthly",
+      amountMinor: 999,
+      currency: "USD",
+      providerSessionId: "cs_portal",
+      providerCustomerId: "cus_portal_123",
+      status: "active",
+    });
+
+    const createPortalSpy = jest.fn<
+      Promise<{ url: string }>,
+      [{ customerId: string; returnUrl: string }]
+    >(async () => ({
+      url: "https://billing.stripe.com/p/session_portal",
+    }));
+
+    const gateway: IPaymentGateway = {
+      createCheckoutSession: async (): Promise<PaymentSessionResult> => ({
+        sessionId: "cs_unused",
+        url: "https://checkout.stripe.com/pay/cs_unused",
+      }),
+      retrieveCheckoutSession: async (): Promise<RetrievedCheckoutSession> => ({
+        sessionId: "cs_unused",
+        status: "open",
+        paymentStatus: "unpaid",
+        customerId: null,
+        subscriptionId: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+      }),
+      cancelSubscription: async (): Promise<void> => undefined,
+      createCustomerPortalSession: createPortalSpy,
+    };
+
+    const command = new CreateCustomerPortalSession(gateway);
+    const result = await command.execute(donation, {
+      returnUrl: "https://app.local/dashboard",
+    });
+
+    expect(result.url).toBe("https://billing.stripe.com/p/session_portal");
+    expect(createPortalSpy).toHaveBeenCalledWith({
+      customerId: "cus_portal_123",
+      returnUrl: "https://app.local/dashboard",
+    });
   });
 });

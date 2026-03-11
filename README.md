@@ -153,6 +153,7 @@ All endpoints below are prefixed by `/api/v1`.
 - `POST /users/logout` (Auth)
 - `POST /users/logout/all` (Auth)
 - `POST /users/signup` (public)
+- `POST /users/password/reset` (public)
 - `POST /users/verify` (public)
 - `POST /users/verify/resend` (public)
 - `GET /users/me` (Auth)
@@ -165,6 +166,7 @@ All endpoints below are prefixed by `/api/v1`.
 - `GET /users/email/:email` (Auth + Admin)
 - `GET /users/username/:username` (Auth + Admin)
 - `GET /users/:id` (Auth + Admin)
+- `POST /users/admins` (Auth + Admin)
 - `PATCH /users/:id/role` (Auth + Admin)
 - `DELETE /users/soft-delete` (Auth + Admin)
 - `POST /users/restore` (Auth + Admin)
@@ -180,6 +182,24 @@ Password change contract:
   - `{ "currentPassword": "string(min:6)", "newPassword": "string(min:6)" }`
 - If `currentPassword` is wrong, API returns `400` with `AUTH.INVALID_CREDENTIALS`.
 - On success, password is updated and all user sessions are revoked.
+
+Admin creation contract:
+
+- `POST /users/admins` requires auth as `Admin`.
+- Body:
+  - `{ "email": "string(email)", "username": "string(5..30)", "rawPassword": "string(min:6)" }`
+- The created user is always persisted as:
+  - `role = "Admin"`
+  - `verified = true`
+
+Password reset contract:
+
+- `POST /users/password/reset` requires body:
+  - `{ "email": "string(email)" }`
+- The backend generates a new random 8-character code and uses that code directly as the new password.
+- The previous password hash is replaced in the database and all sessions are revoked.
+- The new password is sent by email using the dedicated password-reset template.
+- If email delivery fails, the previous password hash is restored.
 
 ### Galaxies
 
@@ -252,10 +272,21 @@ Galaxy read model notes:
 
 - `GET /donations/badges` (Auth)
 - `POST /donations/checkout` (Auth)
+- `POST /donations/:id/portal` (Auth)
 - `POST /donations/checkout/:sessionId/confirm` (Auth)
 - `POST /donations/:id/cancel` (Auth)
 - `GET /donations` (Auth)
 - `GET /donations/:id` (Auth)
+
+Donation portal contract:
+
+- `POST /donations/:id/portal` requires body:
+  - `{ "returnUrl": "string(url)" }`
+- Access rules:
+  - donation owner or admin only
+- The donation must have a Stripe `providerCustomerId`.
+- Returns:
+  - `{ "url": "https://billing.stripe.com/..." }`
 
 ### Logs (Admin)
 

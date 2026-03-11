@@ -160,6 +160,7 @@ export function buildTestApi(): {
           verifiedAt: new Date("2026-01-03T00:00:00.000Z"),
         }),
       ),
+      resetPassword: jest.fn(async () => undefined),
       changeEmail: jest.fn(async () => undefined),
       changePassword: jest.fn(async () => undefined),
       changeUsername: jest.fn(async () => undefined),
@@ -467,6 +468,11 @@ export function buildTestApi(): {
         sessionId: "cs_test_mock",
       })),
     },
+    createCustomerPortalSession: {
+      execute: jest.fn(async () => ({
+        url: "https://billing.stripe.com/p/session_mock",
+      })),
+    },
     confirmDonationBySession: {
       execute: jest.fn(async () => undefined),
     },
@@ -682,6 +688,7 @@ export function buildTestApi(): {
   );
   const donationController = new DonationController(
     mocks.createDonationCheckout as any,
+    mocks.createCustomerPortalSession as any,
     mocks.confirmDonationBySession as any,
     mocks.cancelDonation as any,
     mocks.findDonation as any,

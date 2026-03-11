@@ -42,6 +42,18 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.authService.refresh).not.toHaveBeenCalled();
   });
 
+  test("allows password reset requests without auth", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .post("/api/v1/users/password/reset")
+      .send({ email: "user.reset@test.com" })
+      .expect(204);
+
+    expect(mocks.platformService.resetPassword).toHaveBeenCalledWith({
+      email: "user.reset@test.com",
+    });
+  });
+
   test("allows any authenticated user to create galaxies and injects ownerId from auth context", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)
@@ -321,6 +333,26 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
       .expect(201);
 
     expect(mocks.createDonationCheckout.execute).toHaveBeenCalled();
+  });
+
+  test("allows donation owners to create a Stripe customer portal session", async () => {
+    const { app, mocks } = buildTestApi();
+    const response = await request(app)
+      .post("/api/v1/donations/dddddddd-dddd-4ddd-8ddd-dddddddddddd/portal")
+      .set("Authorization", makeAuthHeader(IDS.userA, "User"))
+      .send({ returnUrl: "https://app.local/account" })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      url: "https://billing.stripe.com/p/session_mock",
+    });
+    expect(mocks.createCustomerPortalSession.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        userId: IDS.userA,
+      }),
+      { returnUrl: "https://app.local/account" },
+    );
   });
 
   test("rejects supporter badge catalog when auth is missing", async () => {

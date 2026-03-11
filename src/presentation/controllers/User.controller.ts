@@ -14,6 +14,7 @@ import { FindUserByUsernameDTO } from "../security/users/FindUserByUsername.dto"
 import { LoginDTO } from "../security/users/Login.dto";
 import { LogoutDTO } from "../security/users/Logout.dto";
 import { RefreshDTO } from "../security/users/Refresh.dto";
+import { ResetPasswordDTO } from "../security/users/ResetPassword.dto";
 import { ResendVerificationDTO } from "../security/users/ResendVerification.dto";
 import { RestoreDTO } from "../security/users/Restore.dto";
 import { SignupDTO } from "../security/users/Signup.dto";
@@ -296,6 +297,20 @@ export class UserController {
       return res.status(201).json({
         user: this.toPublicUserFromAggregate(user),
       });
+    } catch (err: unknown) {
+      return errorHandler(err, res);
+    }
+  };
+
+  public resetPassword = async (req: Request, res: Response) => {
+    try {
+      const parsed = ResetPasswordDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return invalidBody(res, parsed.error);
+      }
+
+      await this.platformService.resetPassword(parsed.data);
+      return res.status(204).send();
     } catch (err: unknown) {
       return errorHandler(err, res);
     }

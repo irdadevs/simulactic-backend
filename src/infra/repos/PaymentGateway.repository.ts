@@ -54,8 +54,8 @@ export class PaymentGatewayRepo implements IPaymentGateway {
             product_data: {
               name:
                 params.donationType === "monthly"
-                  ? "Monthly Simulactic Donation"
-                  : "Simulactic Donation",
+                  ? "Simulactic Monthly Supporter"
+                  : "Support Simulactic",
             },
             ...(params.donationType === "monthly"
               ? { recurring: { interval: "month" as const } }
@@ -95,11 +95,6 @@ export class PaymentGatewayRepo implements IPaymentGateway {
     if (subscriptionId) {
       const subscription = await client.subscriptions.retrieve(subscriptionId);
 
-      console.log("[STRIPE] subscription fetched separately =", subscription);
-
-      console.log("[STRIPE] subscription keys =", Object.keys(subscription as any));
-      console.log("[STRIPE] subscription json =", JSON.stringify(subscription, null, 2));
-
       const firstItem = (subscription as any)?.items?.data?.[0];
 
       const maybeStart = firstItem?.current_period_start;
@@ -124,5 +119,25 @@ export class PaymentGatewayRepo implements IPaymentGateway {
   async cancelSubscription(subscriptionId: string): Promise<void> {
     const client = this.requireClient();
     await client.subscriptions.cancel(subscriptionId);
+  }
+
+  async createCustomerPortalSession(params: {
+    customerId: string;
+    returnUrl: string;
+  }): Promise<{ url: string }> {
+    const client = this.requireClient();
+
+    const session = await client.billingPortal.sessions.create({
+      customer: params.customerId,
+      return_url: params.returnUrl,
+    });
+
+    if (!session.url) {
+      throw ErrorFactory.infra("INFRA.TRANSACTION_FAILED", {
+        cause: "Stripe portal session did not return url",
+      });
+    }
+
+    return { url: session.url };
   }
 }
