@@ -3,6 +3,7 @@ import { ChangeEmailDTO } from "../../../presentation/security/users/ChangeEmail
 import { ChangePasswordDTO } from "../../../presentation/security/users/ChangePassword.dto";
 import { ChangeRoleDTO } from "../../../presentation/security/users/ChangeRole.dto";
 import { ChangeUsernameDTO } from "../../../presentation/security/users/ChangeUsername.dto";
+import { CreateAdminDTO } from "../../../presentation/security/users/CreateAdmin.dto";
 import { SignupDTO } from "../../../presentation/security/users/Signup.dto";
 import { VerifyDTO } from "../../../presentation/security/users/Verify.dto";
 import { ResendVerificationDTO } from "../../../presentation/security/users/ResendVerification.dto";
@@ -10,6 +11,7 @@ import { ChangeEmail } from "../../use-cases/commands/users/ChangeEmail.command"
 import { ChangePassword } from "../../use-cases/commands/users/ChangePassword.command";
 import { ChangeRole } from "../../use-cases/commands/users/ChangeRole.command";
 import { ChangeUsername } from "../../use-cases/commands/users/ChangeUsername.command";
+import { CreateAdmin } from "../../use-cases/commands/users/CreateAdmin.command";
 import { ResendVerificationCode } from "../../use-cases/commands/users/ResendVerificationCode.command";
 import { SignupUser } from "../../use-cases/commands/users/SignupUser.command";
 import { VerifyUser } from "../../use-cases/commands/users/VerifyUser.command";
@@ -17,6 +19,7 @@ import { VerifyUser } from "../../use-cases/commands/users/VerifyUser.command";
 export class PlatformService {
   constructor(
     private readonly signupUser: SignupUser,
+    private readonly createAdminUser: CreateAdmin,
     private readonly verifyUser: VerifyUser,
     private readonly resendVerificationCode: ResendVerificationCode,
     private readonly changeEmailUser: ChangeEmail,
@@ -27,6 +30,10 @@ export class PlatformService {
 
   signup(dto: SignupDTO) {
     return this.signupUser.execute(dto);
+  }
+
+  createAdmin(dto: CreateAdminDTO) {
+    return this.createAdminUser.execute(dto);
   }
 
   verify(dto: VerifyDTO) {
