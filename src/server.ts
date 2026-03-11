@@ -59,6 +59,7 @@ import { LogController } from "./presentation/controllers/Log.controller";
 import { RequestAuditMiddleware } from "./presentation/middlewares/RequestAudit.middleware";
 import { MetricController } from "./presentation/controllers/Metric.controller";
 import { DonationController } from "./presentation/controllers/Donation.controller";
+import { StripeWebhookController } from "./presentation/controllers/StripeWebhook.controller";
 import { PerformanceMetricsMiddleware } from "./presentation/middlewares/PerformanceMetrics.middleware";
 import { SecurityGuardMiddleware } from "./presentation/middlewares/SecurityGuard.middleware";
 import FindUser from "./app/use-cases/queries/users/FindUser.query";
@@ -118,6 +119,7 @@ import { ListLogs } from "./app/use-cases/queries/logs/ListLogs.query";
 import MetricRepo from "./infra/repos/Metric.repository";
 import DonationRepo from "./infra/repos/Donation.repository";
 import { PaymentGatewayRepo } from "./infra/repos/PaymentGateway.repository";
+import { StripeWebhookEventRepo } from "./infra/repos/StripeWebhookEvent.repository";
 import { MetricCacheService } from "./app/app-services/metrics/MetricCache.service";
 import { DonationCacheService } from "./app/app-services/donations/DonationCache.service";
 import { TrackMetric } from "./app/use-cases/commands/metrics/TrackMetric.command";
@@ -129,6 +131,7 @@ import { CreateDonationCheckout } from "./app/use-cases/commands/donations/Creat
 import { CreateCustomerPortalSession } from "./app/use-cases/commands/donations/CreateCustomerPortalSession.command";
 import { ConfirmDonationBySession } from "./app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "./app/use-cases/commands/donations/CancelDonation.command";
+import { ProcessStripeWebhook } from "./app/use-cases/commands/donations/ProcessStripeWebhook.command";
 import { FindDonation } from "./app/use-cases/queries/donations/FindDonation.query";
 import { ListDonations } from "./app/use-cases/queries/donations/ListDonations.query";
 import { GetSupporterProgress } from "./app/use-cases/queries/donations/GetSupporterProgress.query";
@@ -136,6 +139,7 @@ import { ListSupporterBadges } from "./app/use-cases/queries/donations/ListSuppo
 import { DbMetricInput } from "./config/db/DbMetrics";
 import { MaintenanceScheduler } from "./infra/jobs/Maintenance.scheduler";
 import { SecurityBanService } from "./app/app-services/security/SecurityBan.service";
+import { API_VERSION } from "./utils/constants";
 
 // --------------------
 // Server config
@@ -149,6 +153,10 @@ const IS_PROD = APP_ENV.NODE_ENV === "production";
 // Global middlewares
 // --------------------
 app.set("trust proxy", 1);
+app.use(
+  `/api/v${API_VERSION}/stripe/webhook`,
+  Express.raw({ type: "application/json" }),
+);
 app.use(Express.json());
 app.use(
   cors({
@@ -277,6 +285,7 @@ async function start(): Promise<void> {
     const logRepo = new LogRepo(postgres);
     const metricRepo = new MetricRepo(postgres);
     const donationRepo = new DonationRepo(postgres);
+    const stripeWebhookEventRepo = new StripeWebhookEventRepo(postgres);
     const sessionRepo = new SessionRepo(postgres._getPool());
     const securityBanRepo = new SecurityBanRepo(postgres);
     const hasher = new HasherRepo();
@@ -505,6 +514,17 @@ async function start(): Promise<void> {
     const clearAdminNote = new ClearAdminNote(logRepo, logCache);
     const findLog = new FindLog(logRepo, logCache);
     const listLogs = new ListLogs(logRepo, logCache);
+    const processStripeWebhook = new ProcessStripeWebhook(
+      paymentGateway,
+      stripeWebhookEventRepo,
+      donationRepo,
+      donationCache,
+      userRepo,
+      userCache,
+      confirmDonationBySession,
+      createLog,
+      process.env.STRIPE_WEBHOOK_SECRET ?? "",
+    );
     // App-services
     const authService = new AuthService(
       loginUser,
@@ -623,6 +643,7 @@ async function start(): Promise<void> {
       listDonations,
       listSupporterBadges,
     );
+    const stripeWebhookController = new StripeWebhookController(processStripeWebhook);
     // Middlewares
     const authMiddleware = new AuthMiddleware(
       jwtService,
@@ -641,6 +662,7 @@ async function start(): Promise<void> {
     app.use(performanceMetricsMiddleware.captureHttpDuration());
     app.use(requestAuditMiddleware.logResponse());
     app.use(securityGuardMiddleware.blockBannedIp());
+    app.post(`/api/v${API_VERSION}/stripe/webhook`, stripeWebhookController.handle);
     // Routers
     app.use(
       buildApiRouter({

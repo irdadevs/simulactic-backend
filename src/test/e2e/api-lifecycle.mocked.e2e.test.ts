@@ -36,6 +36,27 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.authService.refresh).toHaveBeenCalledWith("valid.refresh.token");
   });
 
+  test("accepts Stripe webhook posts on the public raw-body endpoint", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .post("/api/v1/stripe/webhook")
+      .set("Content-Type", "application/json")
+      .set("stripe-signature", "sig_test")
+      .send(
+        JSON.stringify({
+          id: "evt_mock_1",
+          type: "checkout.session.completed",
+          data: { object: { id: "cs_test_mock" } },
+        }),
+      )
+      .expect(200);
+
+    expect(mocks.processStripeWebhook.execute).toHaveBeenCalledWith({
+      payload: expect.any(Buffer),
+      signature: "sig_test",
+    });
+  });
+
   test("rejects refresh without cookie when body is invalid", async () => {
     const { app, mocks } = buildTestApi();
     await request(app).post("/api/v1/users/token/refresh").send({}).expect(400);

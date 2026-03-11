@@ -9,6 +9,7 @@ Backend API for procedural galaxy generation/simulation with authentication, own
 - Data stores: PostgreSQL + Redis
 - Auth transport: `Authorization: Bearer` or `httpOnly` cookies (`access_token`, `refresh_token`)
 - Payment provider: Stripe
+- Stripe webhook endpoint: `/api/v1/stripe/webhook`
 
 ## API Response Strategy
 
@@ -278,6 +279,40 @@ Galaxy read model notes:
 - `GET /donations` (Auth)
 - `GET /donations/:id` (Auth)
 
+### Stripe Webhooks
+
+- `POST /stripe/webhook` (public, raw-body endpoint)
+- Full deployed endpoint:
+  - `https://api.simulactic.app/api/v1/stripe/webhook`
+- Expected Stripe events:
+  - `checkout.session.completed`
+  - `invoice.paid`
+  - `invoice.payment_failed`
+  - `customer.subscription.deleted`
+
+Webhook lifecycle notes:
+
+- Signature verification uses `STRIPE_WEBHOOK_SECRET`.
+- Incoming events are persisted in `billing.stripe_webhook_events`.
+- Deliveries are idempotent by Stripe event id.
+- Processed events are marked as:
+  - `processed`
+  - `ignored`
+  - `failed`
+- Failed events remain persisted with attempt count and error message so Stripe retries can reconcile state later.
+- Donation synchronization rules:
+  - `checkout.session.completed` confirms the local donation using the checkout session id.
+  - `invoice.paid` refreshes recurring donation active state and billing period data.
+  - `invoice.payment_failed` marks the recurring donation as `failed`.
+  - `customer.subscription.deleted` marks the recurring donation as `canceled`.
+- Donation cache is invalidated and supporter progress is refreshed on webhook-driven state changes.
+- Webhook processing is also recorded through the normal app log pipeline with source:
+  - `stripe.webhook`
+- Current observability split:
+  - app logs: yes
+  - dedicated webhook persistence table: yes
+  - app metrics: not yet
+
 Donation portal contract:
 
 - `POST /donations/:id/portal` requires body:
@@ -385,6 +420,9 @@ Populate cache invalidation:
 - HTTP performance middleware tracks request duration metrics.
 - DB query/transaction timings are reported to metrics.
 - Maintenance runs are persisted to `logs.maintenance_job_runs`.
+- Stripe webhook lifecycle emits application logs with source `stripe.webhook`.
+- Stripe webhook deliveries are also persisted separately in `billing.stripe_webhook_events` for idempotency and retry/failure inspection.
+- Stripe webhook processing is not yet emitted as performance/business metrics.
 
 ## Migrations
 
@@ -452,6 +490,7 @@ npm run prepare
 - JWT: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`
 - SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`
+- Stripe webhooks: `STRIPE_WEBHOOK_SECRET`
 - Maintenance: `MAINTENANCE_*`
   - FX refresh:
     - `MAINTENANCE_FX_RATES_REFRESH_INTERVAL_MIN`

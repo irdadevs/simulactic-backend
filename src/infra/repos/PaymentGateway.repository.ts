@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import {
   IPaymentGateway,
+  PaymentWebhookEvent,
   PaymentSessionResult,
   RetrievedCheckoutSession,
 } from "../../app/interfaces/PaymentGateway.port";
@@ -139,5 +140,28 @@ export class PaymentGatewayRepo implements IPaymentGateway {
     }
 
     return { url: session.url };
+  }
+
+  constructWebhookEvent(params: {
+    payload: Buffer | string;
+    signature: string;
+    webhookSecret: string;
+  }): PaymentWebhookEvent {
+    const client = this.requireClient();
+    const event = client.webhooks.constructEvent(
+      params.payload,
+      params.signature,
+      params.webhookSecret,
+    );
+
+    return {
+      id: event.id,
+      type: event.type,
+      apiVersion: event.api_version ?? null,
+      livemode: event.livemode,
+      data: {
+        object: event.data.object as unknown as Record<string, unknown>,
+      },
+    };
   }
 }

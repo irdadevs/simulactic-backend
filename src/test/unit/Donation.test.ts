@@ -1,8 +1,10 @@
 import { Donation } from "../../domain/aggregates/Donation";
 import { DonationCacheService } from "../../app/app-services/donations/DonationCache.service";
+import { UserCacheService } from "../../app/app-services/users/UserCache.service";
 import { IDonation, SupporterProgress } from "../../app/interfaces/Donation.port";
 import {
   IPaymentGateway,
+  PaymentWebhookEvent,
   PaymentSessionResult,
   RetrievedCheckoutSession,
 } from "../../app/interfaces/PaymentGateway.port";
@@ -10,6 +12,9 @@ import { CreateDonationCheckout } from "../../app/use-cases/commands/donations/C
 import { CreateCustomerPortalSession } from "../../app/use-cases/commands/donations/CreateCustomerPortalSession.command";
 import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
+import { ProcessStripeWebhook } from "../../app/use-cases/commands/donations/ProcessStripeWebhook.command";
+import { CreateLog } from "../../app/use-cases/commands/logs/CreateLog.command";
+import { StripeWebhookEventRecord } from "../../app/interfaces/StripeWebhookEvent.port";
 
 const assertErrorCode = async (fn: () => Promise<unknown>, code: string): Promise<void> => {
   let thrown: unknown;
@@ -133,6 +138,7 @@ describe("Donation commands", () => {
       save: saveSpy,
       findById: async (_id: string): Promise<Donation | null> => null,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
+      findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => null,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -156,6 +162,9 @@ describe("Donation commands", () => {
       cancelSubscription: async (_subscriptionId: string): Promise<void> => undefined,
       createCustomerPortalSession: async (): Promise<{ url: string }> => ({
         url: "https://billing.stripe.com/p/session_test",
+      }),
+      constructWebhookEvent: jest.fn(() => {
+        throw new Error("Not implemented");
       }),
     };
 
@@ -198,6 +207,7 @@ describe("Donation commands", () => {
       save: saveSpy,
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => donation,
+      findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => donation,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -228,6 +238,9 @@ describe("Donation commands", () => {
       cancelSubscription: async (_subscriptionId: string): Promise<void> => undefined,
       createCustomerPortalSession: async (): Promise<{ url: string }> => ({
         url: "https://billing.stripe.com/p/session_test",
+      }),
+      constructWebhookEvent: jest.fn(() => {
+        throw new Error("Not implemented");
       }),
     };
 
@@ -286,6 +299,7 @@ describe("Donation commands", () => {
       save: saveSpy,
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
+      findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => donation,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -312,6 +326,9 @@ describe("Donation commands", () => {
       cancelSubscription: cancelSubscriptionSpy,
       createCustomerPortalSession: async (): Promise<{ url: string }> => ({
         url: "https://billing.stripe.com/p/session_test",
+      }),
+      constructWebhookEvent: jest.fn(() => {
+        throw new Error("Not implemented");
       }),
     };
 
@@ -342,6 +359,7 @@ describe("Donation commands", () => {
       save: async (updated: Donation): Promise<Donation> => updated,
       findById: async (_id: string): Promise<Donation | null> => donation,
       findByProviderSessionId: async (_sessionId: string): Promise<Donation | null> => null,
+      findByProviderSubscriptionId: async (_subscriptionId: string): Promise<Donation | null> => donation,
       list: async (_query): Promise<{ rows: Donation[]; total: number }> => ({
         rows: [],
         total: 0,
@@ -368,6 +386,9 @@ describe("Donation commands", () => {
       cancelSubscription: async (_subscriptionId: string): Promise<void> => undefined,
       createCustomerPortalSession: async (): Promise<{ url: string }> => ({
         url: "https://billing.stripe.com/p/session_test",
+      }),
+      constructWebhookEvent: jest.fn(() => {
+        throw new Error("Not implemented");
       }),
     };
 
@@ -414,6 +435,9 @@ describe("Donation commands", () => {
       }),
       cancelSubscription: async (): Promise<void> => undefined,
       createCustomerPortalSession: createPortalSpy,
+      constructWebhookEvent: jest.fn(() => {
+        throw new Error("Not implemented");
+      }),
     };
 
     const command = new CreateCustomerPortalSession(gateway);
@@ -426,5 +450,111 @@ describe("Donation commands", () => {
       customerId: "cus_portal_123",
       returnUrl: "https://app.local/dashboard",
     });
+  });
+
+  it("processes checkout.session.completed webhooks idempotently", async () => {
+    const paymentGateway: IPaymentGateway = {
+      createCheckoutSession: async (): Promise<PaymentSessionResult> => ({
+        sessionId: "cs_unused",
+        url: "https://checkout.stripe.com/pay/cs_unused",
+      }),
+      retrieveCheckoutSession: async (): Promise<RetrievedCheckoutSession> => ({
+        sessionId: "cs_unused",
+        status: "open",
+        paymentStatus: "unpaid",
+        customerId: null,
+        subscriptionId: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+      }),
+      cancelSubscription: async (): Promise<void> => undefined,
+      createCustomerPortalSession: async (): Promise<{ url: string }> => ({
+        url: "https://billing.stripe.com/p/session_test",
+      }),
+      constructWebhookEvent: jest.fn((): PaymentWebhookEvent => ({
+        id: "evt_1",
+        type: "checkout.session.completed",
+        apiVersion: "2025-01-27.acacia",
+        livemode: false,
+        data: { object: { id: "cs_completed" } },
+      })),
+    };
+
+    const stripeWebhookEvents = {
+      recordReceived: jest.fn(async (): Promise<StripeWebhookEventRecord> => ({
+        id: "evt_1",
+        eventType: "checkout.session.completed",
+        apiVersion: "2025-01-27.acacia",
+        livemode: false,
+        status: "received" as const,
+        attemptCount: 1,
+        payload: {} as Record<string, unknown>,
+        relatedSessionId: "cs_completed",
+        relatedSubscriptionId: null as string | null,
+        relatedCustomerId: null as string | null,
+        errorMessage: null as string | null,
+        processedAt: null as Date | null,
+        failedAt: null as Date | null,
+        lastReceivedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+      markProcessed: jest.fn(async (): Promise<void> => undefined),
+      markFailed: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const donationRepo: IDonation = {
+      save: jest.fn(async (donation: Donation): Promise<Donation> => donation),
+      findById: jest.fn(async (): Promise<Donation | null> => null),
+      findByProviderSessionId: jest.fn(async (): Promise<Donation | null> => null),
+      findByProviderSubscriptionId: jest.fn(async (): Promise<Donation | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: Donation[]; total: number }> => ({ rows: [], total: 0 }),
+      ),
+      listSupporterBadges: jest.fn(
+        async (): Promise<{ rows: never[]; total: number }> => ({ rows: [], total: 0 }),
+      ),
+      getSupporterProgress: jest.fn(async (): Promise<SupporterProgress> => emptyProgress),
+      refreshSupporterProgress: jest.fn(async (): Promise<SupporterProgress> => emptyProgress),
+    };
+
+    const donationCache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as DonationCacheService;
+    const userRepo = {
+      findById: jest.fn(async (): Promise<null> => null),
+      save: jest.fn(async (user: unknown): Promise<unknown> => user),
+    };
+    const userCache = {
+      setUser: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+    const confirmDonationBySession = {
+      execute: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as ConfirmDonationBySession;
+    const createLog = {
+      execute: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as CreateLog;
+
+    const command = new ProcessStripeWebhook(
+      paymentGateway,
+      stripeWebhookEvents as any,
+      donationRepo as any,
+      donationCache,
+      userRepo as any,
+      userCache,
+      confirmDonationBySession,
+      createLog,
+      "whsec_test",
+    );
+
+    const result = await command.execute({
+      payload: JSON.stringify({}),
+      signature: "sig_test",
+    });
+
+    expect(result.duplicate).toBe(false);
+    expect(confirmDonationBySession.execute).toHaveBeenCalledWith("cs_completed");
+    expect(stripeWebhookEvents.markProcessed).toHaveBeenCalledWith("evt_1");
+    expect(stripeWebhookEvents.markFailed).not.toHaveBeenCalled();
   });
 });
