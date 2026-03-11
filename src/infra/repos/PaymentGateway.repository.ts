@@ -100,12 +100,13 @@ export class PaymentGatewayRepo implements IPaymentGateway {
       console.log("[STRIPE] subscription keys =", Object.keys(subscription as any));
       console.log("[STRIPE] subscription json =", JSON.stringify(subscription, null, 2));
 
-      // Aquí inspeccionas el shape real y sacas los campos correctos
-      const maybeStart = (subscription as any).current_period_start;
-      const maybeEnd = (subscription as any).current_period_end;
+      const firstItem = (subscription as any)?.items?.data?.[0];
 
-      periodStart = maybeStart ? new Date(maybeStart * 1000) : null;
-      periodEnd = maybeEnd ? new Date(maybeEnd * 1000) : null;
+      const maybeStart = firstItem?.current_period_start;
+      const maybeEnd = firstItem?.current_period_end;
+
+      periodStart = typeof maybeStart === "number" ? new Date(maybeStart * 1000) : null;
+      periodEnd = typeof maybeEnd === "number" ? new Date(maybeEnd * 1000) : null;
     }
 
     return {
