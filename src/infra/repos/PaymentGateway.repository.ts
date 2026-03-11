@@ -54,8 +54,8 @@ export class PaymentGatewayRepo implements IPaymentGateway {
             product_data: {
               name:
                 params.donationType === "monthly"
-                  ? "Monthly Galactic Donation"
-                  : "Galactic Donation",
+                  ? "Monthly Simulactic Donation"
+                  : "Simulactic Donation",
             },
             ...(params.donationType === "monthly"
               ? { recurring: { interval: "month" as const } }
@@ -77,9 +77,7 @@ export class PaymentGatewayRepo implements IPaymentGateway {
     };
   }
 
-  async retrieveCheckoutSession(
-    sessionId: string,
-  ): Promise<RetrievedCheckoutSession> {
+  async retrieveCheckoutSession(sessionId: string): Promise<RetrievedCheckoutSession> {
     const client = this.requireClient();
     const session = await client.checkout.sessions.retrieve(sessionId, {
       expand: ["subscription"],
@@ -102,17 +100,21 @@ export class PaymentGatewayRepo implements IPaymentGateway {
         : null;
     }
 
+    // TEST AND DELETE DEBUGGING LOGS
+    console.log("[STRIPE] checkout session id:", session.id);
+    console.log("[STRIPE] checkout status:", session.status);
+    console.log("[STRIPE] payment_status:", session.payment_status);
+    console.log("[STRIPE] customer:", session.customer);
+    console.log("[STRIPE] subscription:", session.subscription);
+    console.log("[STRIPE] periodStart:", periodStart);
+    console.log("[STRIPE] periodEnd:", periodEnd);
+
     return {
       sessionId: session.id,
       status: session.status as "open" | "complete" | "expired",
-      paymentStatus: session.payment_status as
-        | "paid"
-        | "unpaid"
-        | "no_payment_required",
+      paymentStatus: session.payment_status as "paid" | "unpaid" | "no_payment_required",
       customerId:
-        typeof session.customer === "string"
-          ? session.customer
-          : (session.customer?.id ?? null),
+        typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null),
       subscriptionId:
         typeof session.subscription === "string"
           ? session.subscription

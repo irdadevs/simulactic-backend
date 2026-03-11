@@ -65,6 +65,8 @@ export class DonationController {
       await this.confirmDonationBySession.execute(parsed.data.sessionId);
       return res.status(204).send();
     } catch (err: unknown) {
+      // TEST AND DELETE DEBUGGING NOTE
+      console.error("[DONATION] confirm failed:", err);
       return errorHandler(err, res);
     }
   };
