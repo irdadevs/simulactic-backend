@@ -23,7 +23,7 @@ export class RedisRepo implements ICache {
     this.prefix = opts.keyPrefix ? `${opts.keyPrefix}:` : "";
     this.client.on("error", (e) => {
       console.log(
-        `${CONSOLE_COLORS.labelColor("[❌redis]")} ${CONSOLE_COLORS.errorColor(`error. ${e}`)}`,
+        `${CONSOLE_COLORS.labelColor("[* REDIS]")} ${CONSOLE_COLORS.errorColor(`error. ${e}`)}`,
       );
     });
   }
@@ -34,7 +34,7 @@ export class RedisRepo implements ICache {
     }
     if (!this.client.isOpen) {
       console.log(
-        `🛜 ${CONSOLE_COLORS.labelColor("[⚙️redis]")} ${CONSOLE_COLORS.successColor(`cache client ready.`)}`,
+        `${CONSOLE_COLORS.labelColor("[* REDIS]")} ${CONSOLE_COLORS.successColor(`cache client ready.`)}`,
       );
       await this.client.connect();
     }
@@ -95,9 +95,7 @@ export class RedisRepo implements ICache {
     this.closed = true;
     if (this.client.isOpen) {
       console.log(
-        `🛜 ${CONSOLE_COLORS.labelColor(
-          "[⚙️redis]",
-        )} ${CONSOLE_COLORS.warningColor(`cache client connection closed.`)}`,
+        `${CONSOLE_COLORS.labelColor("[* REDIS]")} ${CONSOLE_COLORS.warningColor(`cache client connection closed.`)}`,
       );
       await this.client.quit();
     }

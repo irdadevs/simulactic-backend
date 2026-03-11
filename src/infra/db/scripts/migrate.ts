@@ -32,15 +32,15 @@ async function ensureMigrationLog(db: PgPoolQueryable): Promise<void> {
 }
 
 function logInfo(message: string): void {
-  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.infoColor(message)}`);
+  console.log(`${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.infoColor(message)}`);
 }
 
 function logSuccess(message: string): void {
-  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(message)}`);
+  console.log(`${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.successColor(message)}`);
 }
 
 function logWarn(message: string): void {
-  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(message)}`);
+  console.log(`${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.warningColor(message)}`);
 }
 
 async function main() {

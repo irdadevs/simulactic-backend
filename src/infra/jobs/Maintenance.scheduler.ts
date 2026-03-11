@@ -224,7 +224,7 @@ export class MaintenanceScheduler {
 
   private async runTask(task: MaintenanceTask): Promise<void> {
     if (this.inFlight.has(task.key)) {
-      this.logger.warn(`[MAINTENANCE] skip overlapping run for ${task.key}`);
+      this.logger.warn(`[! MAINTENANCE] skip overlapping run for ${task.key}`);
       return;
     }
 
@@ -234,11 +234,11 @@ export class MaintenanceScheduler {
     try {
       const details = await task.run();
       await this.persistRun(task.key, startedAt, true, details, null);
-      this.logger.info(`[MAINTENANCE] ${task.key} completed`);
+      this.logger.info(`[! MAINTENANCE] ${task.key} completed`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.persistRun(task.key, startedAt, false, {}, message);
-      this.logger.error(`[MAINTENANCE] ${task.key} failed: ${message}`);
+      this.logger.error(`[! MAINTENANCE] ${task.key} failed: ${message}`);
     } finally {
       this.inFlight.delete(task.key);
     }

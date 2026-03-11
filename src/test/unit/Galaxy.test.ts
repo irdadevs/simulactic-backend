@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { GalaxyLifecycleService } from "../../app/app-services/galaxies/GalaxyLifecycle.service";
+import { DeleteGalaxy } from "../../app/use-cases/commands/galaxies/DeleteGalaxy.command";
 import { CreateGalaxy } from "../../app/use-cases/commands/galaxies/CreateGalaxy.command";
 import { Galaxy, GalaxyShapeValue } from "../../domain/aggregates/Galaxy";
-import { User } from "../../domain/aggregates/User";
+import { System } from "../../domain/aggregates/System";
+import { User, Uuid } from "../../domain/aggregates/User";
 
 const validInput = {
   ownerId: "11111111-1111-4111-8111-111111111111",
@@ -468,5 +470,98 @@ describe("GalaxyLifecycleService - planet and moon procedural generation", () =>
     expect(moonSave).toHaveBeenCalledTimes(1);
     const createdMoon = moonSave.mock.calls[0][0];
     expect(createdMoon.size).toBe("giant");
+  });
+});
+
+describe("Galaxy deletion lifecycle", () => {
+  it("deletes the galaxy root and relies on database cascade for nested procedurals", async () => {
+    const service = new GalaxyLifecycleService();
+    const galaxyId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const system = System.create({
+      galaxyId,
+      name: "CascadePrime",
+      position: { x: 1, y: 2, z: 3 },
+    });
+
+    const repos = {
+      galaxy: { delete: jest.fn(async () => undefined) },
+      system: { findByGalaxy: jest.fn(async () => ({ rows: [system], total: 1 })) },
+      star: { delete: jest.fn(async () => undefined), findBySystem: jest.fn(async () => ({ rows: [] })) },
+      planet: { delete: jest.fn(async () => undefined), findBySystem: jest.fn(async () => ({ rows: [] })) },
+      moon: { delete: jest.fn(async () => undefined), findByPlanet: jest.fn(async () => ({ rows: [] })) },
+      asteroid: { delete: jest.fn(async () => undefined), findBySystem: jest.fn(async () => ({ rows: [] })) },
+    } as any;
+
+    const deletedSystems = await service.deleteGalaxyTree(Uuid.create(galaxyId), repos);
+
+    expect(deletedSystems).toEqual([system]);
+    expect(repos.system.findByGalaxy).toHaveBeenCalledTimes(1);
+    expect(repos.galaxy.delete).toHaveBeenCalledTimes(1);
+    expect(repos.star.findBySystem).not.toHaveBeenCalled();
+    expect(repos.planet.findBySystem).not.toHaveBeenCalled();
+    expect(repos.asteroid.findBySystem).not.toHaveBeenCalled();
+    expect(repos.moon.findByPlanet).not.toHaveBeenCalled();
+    expect(repos.star.delete).not.toHaveBeenCalled();
+    expect(repos.planet.delete).not.toHaveBeenCalled();
+    expect(repos.moon.delete).not.toHaveBeenCalled();
+    expect(repos.asteroid.delete).not.toHaveBeenCalled();
+  });
+
+  it("batch invalidates deleted system cache entries after commit", async () => {
+    const galaxy = Galaxy.create({
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      name: "DeleteFast",
+      shape: "spherical",
+      systemCount: 1,
+    });
+    const system = System.create({
+      galaxyId: galaxy.id,
+      name: "DeleteFast-1",
+      position: { x: 10, y: 20, z: 30 },
+    });
+    const uow = {
+      db: {} as any,
+      commit: jest.fn(async () => undefined),
+      rollback: jest.fn(async () => undefined),
+    };
+    const lifecycle = {
+      deleteGalaxyTree: jest.fn(async () => [system]),
+    } as unknown as GalaxyLifecycleService;
+    const galaxyRepo = {
+      findById: jest.fn(async () => galaxy),
+    };
+    const systemCache = {
+      invalidateForDeletedGalaxy: jest.fn(async () => undefined),
+    };
+
+    const command = new DeleteGalaxy(
+      { start: async () => uow } as any,
+      {
+        galaxy: () => galaxyRepo as any,
+        system: () => ({}) as any,
+        star: () => ({}) as any,
+        planet: () => ({}) as any,
+        moon: () => ({}) as any,
+        asteroid: () => ({}) as any,
+      },
+      lifecycle,
+      {
+        invalidateForDelete: jest.fn(async () => undefined),
+      } as any,
+      systemCache as any,
+    );
+
+    await command.execute(Uuid.create(galaxy.id));
+
+    expect(uow.commit).toHaveBeenCalledTimes(1);
+    expect(systemCache.invalidateForDeletedGalaxy).toHaveBeenCalledWith([
+      {
+        id: system.id,
+        galaxyId: system.galaxyId,
+        name: system.name,
+        position: system.position,
+      },
+    ]);
   });
 });

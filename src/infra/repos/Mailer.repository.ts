@@ -188,7 +188,7 @@ export class MailerRepo implements IMailer {
         });
       }
 
-      console.info(`[MAILER] to=${to.toString()} subject="${subject}" body="${text}"`);
+      console.info(`[@ MAILER] to=${to.toString()} subject="${subject}" body="${text}"`);
       return;
     }
 
