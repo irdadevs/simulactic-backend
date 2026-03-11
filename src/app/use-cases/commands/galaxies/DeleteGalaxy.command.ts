@@ -41,14 +41,14 @@ export class DeleteGalaxy {
           name: existing.name,
         });
       }
-      for (const system of deletedSystems) {
-        await this.systemCache.invalidateForDelete({
+      await this.systemCache.invalidateForDeletedGalaxy(
+        deletedSystems.map((system) => ({
           id: system.id,
           galaxyId: system.galaxyId,
           name: system.name,
           position: system.position,
-        });
-      }
+        })),
+      );
       await this.metrics?.execute({
         metricName: "use_case.galaxy.delete",
         metricType: "use_case",

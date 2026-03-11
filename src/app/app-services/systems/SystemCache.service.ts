@@ -15,6 +15,13 @@ type SystemIdentitySnapshot = {
   galaxyId: string;
 };
 
+type SystemDeleteSnapshot = {
+  id: string;
+  name: string;
+  position: SystemPositionProps;
+  galaxyId: string;
+};
+
 export class SystemCacheService {
   constructor(private readonly cache: ICache) {}
 
@@ -145,6 +152,28 @@ export class SystemCacheService {
       ]);
       await this.cache.delByPrefix(SystemCacheKeys.byNamePrefix());
       await this.cache.delByPrefix(SystemCacheKeys.byPositionPrefix());
+    } catch {
+      return;
+    }
+  }
+
+  async invalidateForDeletedGalaxy(systems: SystemDeleteSnapshot[]): Promise<void> {
+    if (systems.length === 0) return;
+
+    const keys = new Set<string>();
+    for (const system of systems) {
+      keys.add(SystemCacheKeys.byId(system.id));
+      keys.add(SystemCacheKeys.byName(system.name));
+      keys.add(SystemCacheKeys.byPosition(system.position));
+      keys.add(SystemCacheKeys.listByGalaxy(system.galaxyId));
+    }
+
+    try {
+      await this.cache.delMany(Array.from(keys));
+      await Promise.all([
+        this.cache.delByPrefix(SystemCacheKeys.byNamePrefix()),
+        this.cache.delByPrefix(SystemCacheKeys.byPositionPrefix()),
+      ]);
     } catch {
       return;
     }

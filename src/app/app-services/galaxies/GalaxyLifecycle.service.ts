@@ -325,33 +325,6 @@ export class GalaxyLifecycleService {
     repos: ProceduralRepos,
   ): Promise<System[]> {
     const systems = await repos.system.findByGalaxy(galaxyId);
-
-    for (const system of systems.rows) {
-      const [planets, asteroids, stars] = await Promise.all([
-        repos.planet.findBySystem(Uuid.create(system.id)),
-        repos.asteroid.findBySystem(Uuid.create(system.id)),
-        repos.star.findBySystem(Uuid.create(system.id)),
-      ]);
-
-      for (const planet of planets.rows) {
-        const moons = await repos.moon.findByPlanet(Uuid.create(planet.id));
-        for (const moon of moons.rows) {
-          await repos.moon.delete(Uuid.create(moon.id));
-        }
-        await repos.planet.delete(Uuid.create(planet.id));
-      }
-
-      for (const asteroid of asteroids.rows) {
-        await repos.asteroid.delete(Uuid.create(asteroid.id));
-      }
-
-      for (const star of stars.rows) {
-        await repos.star.delete(Uuid.create(star.id));
-      }
-
-      await repos.system.delete(Uuid.create(system.id));
-    }
-
     await repos.galaxy.delete(galaxyId);
     return systems.rows;
   }
