@@ -2,20 +2,16 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({
+  path: process.env.NODE_ENV === "production" ? ".env.production" : ".env",
+});
 
 import { PgPoolQueryable } from "../Postgres";
 import { PgUnitOfWorkFactory } from "../PostgresUoW";
 import { ErrorFactory } from "../../../utils/errors/Error.map";
 import { CONSOLE_COLORS } from "../../../utils/Chalk";
 
-const MIGRATIONS_DIR = path.join(
-  process.cwd(),
-  "src",
-  "infra",
-  "db",
-  "migrations",
-);
+const MIGRATIONS_DIR = path.join(process.cwd(), "src", "infra", "db", "migrations");
 
 async function sha256(buf: Buffer | string) {
   return crypto.createHash("sha256").update(buf).digest("hex");
@@ -36,32 +32,22 @@ async function ensureMigrationLog(db: PgPoolQueryable): Promise<void> {
 }
 
 function logInfo(message: string): void {
-  console.log(
-    `${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.infoColor(message)}`,
-  );
+  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.infoColor(message)}`);
 }
 
 function logSuccess(message: string): void {
-  console.log(
-    `${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(
-      message,
-    )}`,
-  );
+  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(message)}`);
 }
 
 function logWarn(message: string): void {
-  console.log(
-    `${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(
-      message,
-    )}`,
-  );
+  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(message)}`);
 }
 
 async function main() {
+  console.log("DATABASE_URL:", process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL);
   const db = await PgPoolQueryable.connect(
     {
-      connectionString: process.env.DATABASE_URL,
-      port: Number(process.env.PGPORT),
+      connectionString: process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL,
       ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : false,
       max: Number(process.env.PGMAX ?? 10),
       idleTimeoutMillis: Number(process.env.PGIDLE_TIMEOUT_MS ?? 10000),
@@ -106,12 +92,7 @@ async function main() {
       await uow.db.query(
         `INSERT INTO logs.migration_log (filename, checksum, applied_by, execution_time_ms)
          VALUES ($1, $2, $3, $4)`,
-        [
-          filename,
-          checksum,
-          process.env.MIGRATION_USER ?? null,
-          Date.now() - startedAt,
-        ],
+        [filename, checksum, process.env.MIGRATION_USER ?? null, Date.now() - startedAt],
       );
       await uow.commit();
       logSuccess(`applied ${filename} (${Date.now() - startedAt}ms)`);

@@ -34,6 +34,9 @@ export class MailerRepo implements IMailer {
         port,
         secure: config?.secure ?? process.env.SMTP_SECURE === "true",
         auth: user && pass ? { user, pass } : undefined,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
       return;
     }
@@ -146,6 +149,14 @@ export class MailerRepo implements IMailer {
       return;
     }
 
+    console.log("[MAIL] transporter?", Boolean(this.transporter));
+    console.log("[MAIL] host:", process.env.SMTP_HOST);
+    console.log("[MAIL] port:", process.env.SMTP_PORT);
+    console.log("[MAIL] secure:", process.env.SMTP_SECURE);
+    console.log("[MAIL] user:", process.env.SMTP_USER);
+    console.log("[MAIL] from:", this.from);
+    console.log("[MAIL] before sendMail");
+
     await this.transporter.sendMail({
       from: this.from,
       to: to.toString(),
@@ -153,5 +164,7 @@ export class MailerRepo implements IMailer {
       text,
       html,
     });
+
+    console.log("[MAIL] sendMail success");
   }
 }
