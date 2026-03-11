@@ -458,6 +458,65 @@ describe("CreateAdmin command", () => {
 });
 
 describe("ResetPassword command", () => {
+  it("returns not found when the email does not exist", async () => {
+    const repo: IUser = {
+      save: jest.fn(async (u): Promise<User> => u),
+      findById: jest.fn(async (): Promise<User | null> => null),
+      findByEmail: jest.fn(async (): Promise<User | null> => null),
+      findByUsername: jest.fn(async (): Promise<User | null> => null),
+      list: jest.fn(
+        async (): Promise<{ rows: UserListItem[]; total: number }> => ({
+          rows: [],
+          total: 0,
+        }),
+      ),
+      changeEmail: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changePassword: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changeUsername: jest.fn(async (): Promise<User> => User.create(validInput)),
+      changeRole: jest.fn(async (): Promise<User> => User.create(validInput)),
+      verify: jest.fn(async (): Promise<void> => undefined),
+      softDelete: jest.fn(async (): Promise<void> => undefined),
+      restore: jest.fn(async (): Promise<void> => undefined),
+      touchActivity: jest.fn(async (): Promise<void> => undefined),
+      archiveInactive: jest.fn(
+        async (): Promise<Array<{ id: string; email: string; username: string }>> => [],
+      ),
+    };
+
+    const hasher: IHasher = {
+      hash: jest.fn(async () => "temporary-password-hash-456"),
+      compare: jest.fn(async () => true),
+    };
+
+    const mailer: IMailer = {
+      genCode: jest.fn(() => "Temp1234"),
+      send: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const sessionRepo: ISession = {
+      create: jest.fn(async (): Promise<void> => undefined),
+      save: jest.fn(async (): Promise<void> => undefined),
+      findById: jest.fn(async (): Promise<null> => null),
+      revoke: jest.fn(async (): Promise<void> => undefined),
+      revokeAllForUser: jest.fn(async (): Promise<void> => undefined),
+      updateRefreshTokenHash: jest.fn(async (): Promise<void> => undefined),
+    };
+
+    const userCache = {
+      invalidateForMutation: jest.fn(async (): Promise<void> => undefined),
+    } as unknown as UserCacheService;
+
+    const command = new ResetPassword(repo, hasher, mailer, sessionRepo, userCache);
+
+    await expect(command.execute({ email: "missing@test.com" })).rejects.toMatchObject({
+      code: "SHARED.NOT_FOUND",
+    });
+
+    expect(hasher.hash).not.toHaveBeenCalled();
+    expect(mailer.send).not.toHaveBeenCalled();
+    expect(sessionRepo.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
   it("replaces the user password, revokes sessions, and emails the temporary password", async () => {
     const user = User.create({
       id: "77777777-7777-4777-8777-777777777777",
