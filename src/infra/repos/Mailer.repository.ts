@@ -25,8 +25,7 @@ export class MailerRepo implements IMailer {
     const port = config?.port ?? Number(process.env.SMTP_PORT ?? 0);
     const user = config?.user ?? process.env.SMTP_USER;
     const pass = config?.pass ?? process.env.SMTP_PASS;
-    this.from =
-      config?.from ?? process.env.SMTP_FROM ?? "no-reply@galactic.local";
+    this.from = config?.from ?? process.env.SMTP_FROM ?? "no-reply@simulactic.app";
     this.isProd = config?.isProd ?? process.env.NODE_ENV === "production";
 
     if (host && Number.isFinite(port) && port > 0) {
@@ -43,8 +42,7 @@ export class MailerRepo implements IMailer {
   }
 
   genCode(long: number = 8): string {
-    const chars =
-      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
     for (let i = 0; i < long; i++) {
       code += chars[randomInt(0, chars.length)];
@@ -91,7 +89,7 @@ export class MailerRepo implements IMailer {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Galactic API Verification</title>
+    <title>Simulactic Verification Code</title>
   </head>
   <body style="margin:0; padding:0; background:#eef2ff;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2ff; padding:24px 12px;">
@@ -119,7 +117,7 @@ export class MailerRepo implements IMailer {
             <tr>
               <td style="padding:18px 24px 24px; border-top:1px solid #e6eaf4; background:#fafbff; font-family:Segoe UI, Arial, sans-serif;">
                 <p style="margin:0; color:#667085; font-size:12px; line-height:1.6;">
-                  Need help? Contact support at support@galactic.local.<br />
+                  Need help? Contact support at contact@simulactic.app.<br />
                   For your security, never share this code with anyone.
                 </p>
               </td>
@@ -135,7 +133,7 @@ export class MailerRepo implements IMailer {
   async send(to: Email, subject: string, body: string): Promise<void> {
     const code = body.trim();
     const html = this.renderVerificationTemplate(code);
-    const text = `Your Galactic API verification code is: ${code}`;
+    const text = `Your Simulactic verification code is: ${code}`;
 
     if (!this.transporter) {
       if (this.isProd) {
@@ -144,9 +142,7 @@ export class MailerRepo implements IMailer {
         });
       }
 
-      console.info(
-        `[MAILER] to=${to.toString()} subject="${subject}" body="${text}"`,
-      );
+      console.info(`[MAILER] to=${to.toString()} subject="${subject}" body="${text}"`);
       return;
     }
 
