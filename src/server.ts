@@ -685,25 +685,25 @@ async function start(): Promise<void> {
     );
 
     console.log(
-      `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.successColor(
-        "✅ Composition root wiring finished",
+      `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.successColor(
+        "Composition root wiring finished",
       )}`,
     );
     app.disable("x-powered-by");
 
     // --------------------
-    // 3️⃣ Start listening
+    // Start listening
     // --------------------
     httpServer = app.listen(PORT, "0.0.0.0", () => {
       console.log(
-        `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.successColor(
+        `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.successColor(
           `Listening on port ${PORT}`,
         )}`,
       );
     });
   } catch (e) {
     console.error(
-      `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.errorColor(
+      `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.errorColor(
         `Failed to start: ${e instanceof Error ? e.message : String(e)}`,
       )}`,
     );
@@ -723,8 +723,8 @@ async function start(): Promise<void> {
 // --------------------
 const shutdown = async (signal: string) => {
   console.log(
-    `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.warningColor(
-      `🛑 Shutdown signal ${signal} received`,
+    `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.warningColor(
+      `Shutdown signal ${signal} received`,
     )}`,
   );
   try {
@@ -739,8 +739,8 @@ const shutdown = async (signal: string) => {
     process.exit(0);
   } catch (e) {
     console.error(
-      `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.errorColor(
-        `❌ Shutdown error: ${e instanceof Error ? e.message : String(e)}`,
+      `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.errorColor(
+        `Shutdown error: ${e instanceof Error ? e.message : String(e)}`,
       )}`,
     );
     process.exit(1);
@@ -751,14 +751,14 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 process.on("unhandledRejection", (reason: unknown) => {
   console.error(
-    `${CONSOLE_COLORS.labelColor("[ðŸ›œSERVER]")} ${CONSOLE_COLORS.errorColor(
+    `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.errorColor(
       `Unhandled rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
     )}`,
   );
 });
 process.on("uncaughtException", (error: Error) => {
   console.error(
-    `${CONSOLE_COLORS.labelColor("[ðŸ›œSERVER]")} ${CONSOLE_COLORS.errorColor(
+    `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.errorColor(
       `Uncaught exception: ${error.message}`,
     )}`,
   );
@@ -769,8 +769,8 @@ process.on("uncaughtException", (error: Error) => {
 // --------------------
 start().catch((e) => {
   console.error(
-    `${CONSOLE_COLORS.labelColor("[🛜SERVER]")} ${CONSOLE_COLORS.errorColor(
-      `❌ Bootstrap error: ${e instanceof Error ? e.message : String(e)}`,
+    `${CONSOLE_COLORS.labelColor("[@ SERVER]")} ${CONSOLE_COLORS.errorColor(
+      `Bootstrap error: ${e instanceof Error ? e.message : String(e)}`,
     )}`,
   );
   process.exit(1);

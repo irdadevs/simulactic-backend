@@ -49,21 +49,21 @@ export class PgPoolQueryable implements Queryable {
         }
 
         log?.info?.(
-          `✅${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(
+          `${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.successColor(
             `connected (attempt ${attempt}, ${Date.now() - start}ms at port ${cfg.port}).`,
           )}`,
         );
         break;
       } catch (_err) {
         log?.warn?.(
-          `⚠️ ${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(
+          `${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.warningColor(
             `connection attempt ${attempt} failed. Retrying...`,
           )}`,
         );
 
         if (attempt >= maxAttempts) {
           log?.error?.(
-            `🔥${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.errorColor(
+            `${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.errorColor(
               `giving up after max attempts`,
             )}`,
           );

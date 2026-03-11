@@ -9,15 +9,15 @@ import { CONSOLE_COLORS } from "../../../utils/Chalk";
 import { ErrorFactory } from "../../../utils/errors/Error.map";
 
 function logInfo(message: string): void {
-  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.infoColor(message)}`);
+  console.log(`${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.infoColor(message)}`);
 }
 
 function logSuccess(message: string): void {
-  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.successColor(message)}`);
+  console.log(`${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.successColor(message)}`);
 }
 
 function logWarn(message: string): void {
-  console.log(`${CONSOLE_COLORS.labelColor("[⚙️DB]")} ${CONSOLE_COLORS.warningColor(message)}`);
+  console.log(`${CONSOLE_COLORS.labelColor("[# DB]")} ${CONSOLE_COLORS.warningColor(message)}`);
 }
 
 async function main() {
