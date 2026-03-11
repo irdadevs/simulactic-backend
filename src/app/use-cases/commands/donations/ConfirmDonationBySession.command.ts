@@ -26,22 +26,12 @@ export class ConfirmDonationBySession {
 
     const session = await this.paymentGateway.retrieveCheckoutSession(sessionId);
 
-    console.log("[DONATION] session payload =", session);
-
     if (session.status === "expired") {
       donation.expire();
     } else if (donation.donationType === "one_time") {
       if (session.paymentStatus === "paid") donation.completeOneTime();
       else donation.fail();
     } else {
-      console.log("[DONATION] recurring session fields", {
-        customerId: session.customerId,
-        subscriptionId: session.subscriptionId,
-        currentPeriodStart: session.currentPeriodStart,
-        currentPeriodEnd: session.currentPeriodEnd,
-        status: session.status,
-        paymentStatus: session.paymentStatus,
-      });
       if (
         !session.customerId ||
         !session.subscriptionId ||

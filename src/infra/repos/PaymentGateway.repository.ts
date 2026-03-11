@@ -95,11 +95,6 @@ export class PaymentGatewayRepo implements IPaymentGateway {
     if (subscriptionId) {
       const subscription = await client.subscriptions.retrieve(subscriptionId);
 
-      console.log("[STRIPE] subscription fetched separately =", subscription);
-
-      console.log("[STRIPE] subscription keys =", Object.keys(subscription as any));
-      console.log("[STRIPE] subscription json =", JSON.stringify(subscription, null, 2));
-
       const firstItem = (subscription as any)?.items?.data?.[0];
 
       const maybeStart = firstItem?.current_period_start;
