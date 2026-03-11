@@ -1,5 +1,6 @@
 import { Email } from "../../../../domain/aggregates/User";
 import { ResetPasswordDTO } from "../../../../presentation/security/users/ResetPassword.dto";
+import { ErrorFactory } from "../../../../utils/errors/Error.map";
 import { IHasher } from "../../../interfaces/Hasher.port";
 import { IMailer } from "../../../interfaces/Mailer.port";
 import { ISession } from "../../../interfaces/Session.port";
@@ -22,9 +23,11 @@ export class ResetPassword {
     const email = Email.create(dto.email);
     const user = await this.userRepo.findByEmail(email);
 
-    // Prevent user enumeration.
     if (!user) {
-      return;
+      throw ErrorFactory.presentation("SHARED.NOT_FOUND", {
+        sourceType: "user",
+        id: dto.email,
+      });
     }
 
     const previousPasswordHash = user.passwordHash;
