@@ -8,7 +8,7 @@ import { UserCacheService } from "../../../app-services/users/UserCache.service"
 
 export class ResetPassword {
   private static readonly PASSWORD_CODE_LENGTH = 8;
-  private static readonly PASSWORD_CODE_SUBJECT = "Galactic API - Password reset";
+  private static readonly PASSWORD_CODE_SUBJECT = "Simulactic - Password reset";
 
   constructor(
     private readonly userRepo: IUser,
@@ -37,11 +37,7 @@ export class ResetPassword {
     await this.sessionRepo.revokeAllForUser(user.id);
 
     try {
-      await this.mailer.send(
-        email,
-        ResetPassword.PASSWORD_CODE_SUBJECT,
-        passwordCode,
-      );
+      await this.mailer.send(email, ResetPassword.PASSWORD_CODE_SUBJECT, passwordCode);
     } catch (error) {
       user.changePasswordHash(previousPasswordHash);
       await this.userRepo.save(user);

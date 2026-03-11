@@ -23,7 +23,7 @@ export function DonationRoutes(
     },
     {
       method: "post",
-      path: "/:id/portal",
+      path: "/portal",
       before: [auth.requireAuth()],
       handler: ctrl.createPortalSession,
     },

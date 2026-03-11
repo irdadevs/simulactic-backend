@@ -525,7 +525,7 @@ describe("ResetPassword command", () => {
     expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith(user.id);
     expect(mailer.send).toHaveBeenCalledWith(
       expect.objectContaining({ toString: expect.any(Function) }),
-      "Galactic API - Password reset",
+      "Simulactic - Password reset",
       "Temp1234",
     );
   });

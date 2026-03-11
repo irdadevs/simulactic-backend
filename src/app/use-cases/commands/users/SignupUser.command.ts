@@ -52,7 +52,7 @@ export class SignupUser {
     await this.userCache.invalidateList();
 
     try {
-      await this.mailer.send(Email.create(dto.email), "Galactic API - Verification code", code);
+      await this.mailer.send(Email.create(dto.email), "Simulactic - Verification code", code);
     } catch (_error) {
       // Keep signup path available even if SMTP is unavailable.
     }
