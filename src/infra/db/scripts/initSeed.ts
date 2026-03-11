@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({
+  path: process.env.NODE_ENV === "production" ? ".env.production" : ".env",
+});
 
 import { PgPoolQueryable } from "../Postgres";
 import { PgUnitOfWorkFactory } from "../PostgresUoW";
@@ -21,8 +23,7 @@ function logWarn(message: string): void {
 async function main() {
   const db = await PgPoolQueryable.connect(
     {
-      connectionString: process.env.DATABASE_URL,
-      port: Number(process.env.PGPORT),
+      connectionString: process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL,
       ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : false,
       max: Number(process.env.PGMAX ?? 10),
       idleTimeoutMillis: Number(process.env.PGIDLE_TIMEOUT_MS ?? 10000),
@@ -69,7 +70,7 @@ async function main() {
         ('months', 3, 'Monthly Officer', '6 months', 6),
         ('months', 4, 'Monthly Captain', '12 months', 12),
         ('months', 5, 'Monthly Admiral', '24 months', 24),
-        ('months', 6, 'Monthly Sovereign', '36 months', 36),
+        ('months', 6, 'Monthly Sovereign', '36 months', 36)
       ON CONFLICT (branch, level) DO UPDATE SET
         name = EXCLUDED.name,
         quantity_label = EXCLUDED.quantity_label,
