@@ -15,6 +15,16 @@ export type RetrievedCheckoutSession = {
   currentPeriodEnd: Date | null;
 };
 
+export type PaymentWebhookEvent = {
+  id: string;
+  type: string;
+  apiVersion: string | null;
+  livemode: boolean;
+  data: {
+    object: Record<string, unknown>;
+  };
+};
+
 export interface IPaymentGateway {
   createCheckoutSession(params: {
     donationType: DonationType;
@@ -31,4 +41,9 @@ export interface IPaymentGateway {
     customerId: string;
     returnUrl: string;
   }): Promise<{ url: string }>;
+  constructWebhookEvent(params: {
+    payload: Buffer | string;
+    signature: string;
+    webhookSecret: string;
+  }): PaymentWebhookEvent;
 }

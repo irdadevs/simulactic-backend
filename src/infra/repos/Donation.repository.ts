@@ -184,6 +184,37 @@ export default class DonationRepo implements IDonation {
     return this.mapRow(query.rows[0]);
   }
 
+  async findByProviderSubscriptionId(subscriptionId: string): Promise<Donation | null> {
+    const query = await this.db.query(
+      `
+      SELECT
+        id,
+        user_id,
+        donation_type,
+        amount_minor,
+        currency,
+        status,
+        provider,
+        provider_session_id,
+        provider_customer_id,
+        provider_subscription_id,
+        current_period_start,
+        current_period_end,
+        canceled_at,
+        created_at,
+        updated_at
+      FROM billing.donations
+      WHERE provider_subscription_id = $1
+      ORDER BY updated_at DESC
+      LIMIT 1
+      `,
+      [subscriptionId],
+    );
+
+    if (query.rowCount === 0) return null;
+    return this.mapRow(query.rows[0]);
+  }
+
   async list(query: ListDonationsQuery): Promise<{ rows: Donation[]; total: number }> {
     const params = new ParamBag();
     const where: string[] = ["is_archived = false"];

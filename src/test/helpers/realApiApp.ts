@@ -15,6 +15,7 @@ import { AsteroidController } from "../../presentation/controllers/Asteroid.cont
 import { LogController } from "../../presentation/controllers/Log.controller";
 import { MetricController } from "../../presentation/controllers/Metric.controller";
 import { DonationController } from "../../presentation/controllers/Donation.controller";
+import { StripeWebhookController } from "../../presentation/controllers/StripeWebhook.controller";
 import UserRepo from "../../infra/repos/User.repository";
 import GalaxyRepo from "../../infra/repos/Galaxy.repository";
 import SystemRepo from "../../infra/repos/System.repository";
@@ -25,6 +26,7 @@ import AsteroidRepo from "../../infra/repos/Asteroid.repository";
 import LogRepo from "../../infra/repos/Log.repository";
 import MetricRepo from "../../infra/repos/Metric.repository";
 import DonationRepo from "../../infra/repos/Donation.repository";
+import { StripeWebhookEventRepo } from "../../infra/repos/StripeWebhookEvent.repository";
 import { SessionRepo } from "../../infra/repos/Session.repository";
 import { SecurityBanRepo } from "../../infra/repos/SecurityBan.repository";
 import { HasherRepo } from "../../infra/repos/Hasher.repository";
@@ -113,6 +115,7 @@ import { CreateDonationCheckout } from "../../app/use-cases/commands/donations/C
 import { CreateCustomerPortalSession } from "../../app/use-cases/commands/donations/CreateCustomerPortalSession.command";
 import { ConfirmDonationBySession } from "../../app/use-cases/commands/donations/ConfirmDonationBySession.command";
 import { CancelDonation } from "../../app/use-cases/commands/donations/CancelDonation.command";
+import { ProcessStripeWebhook } from "../../app/use-cases/commands/donations/ProcessStripeWebhook.command";
 import { FindDonation } from "../../app/use-cases/queries/donations/FindDonation.query";
 import { ListDonations } from "../../app/use-cases/queries/donations/ListDonations.query";
 import { GetSupporterProgress } from "../../app/use-cases/queries/donations/GetSupporterProgress.query";
@@ -122,8 +125,10 @@ import { RealInfraContext } from "./realInfra";
 import { IMailer } from "../../app/interfaces/Mailer.port";
 import {
   IPaymentGateway,
+  PaymentWebhookEvent,
   RetrievedCheckoutSession,
 } from "../../app/interfaces/PaymentGateway.port";
+import { API_VERSION } from "../../utils/constants";
 
 type SeedUserInput = {
   email: string;
@@ -177,6 +182,31 @@ class FakePaymentGateway implements IPaymentGateway {
       url: `https://billing.test/session/${params.customerId}?return=${encodeURIComponent(params.returnUrl)}`,
     };
   }
+
+  constructWebhookEvent(params: {
+    payload: Buffer | string;
+    signature: string;
+    webhookSecret: string;
+  }): PaymentWebhookEvent {
+    if (params.signature !== "test-signature" || params.webhookSecret !== "test_webhook_secret") {
+      throw new Error("Invalid Stripe signature");
+    }
+
+    const payload =
+      typeof params.payload === "string"
+        ? JSON.parse(params.payload)
+        : JSON.parse(params.payload.toString("utf8"));
+
+    return {
+      id: String(payload.id),
+      type: String(payload.type),
+      apiVersion: payload.api_version ?? null,
+      livemode: Boolean(payload.livemode),
+      data: {
+        object: (payload.data?.object ?? {}) as Record<string, unknown>,
+      },
+    };
+  }
 }
 
 export type RealApiApp = {
@@ -221,6 +251,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const logRepo = new LogRepo(ctx.db);
   const metricRepo = new MetricRepo(ctx.db);
   const donationRepo = new DonationRepo(ctx.db);
+  const stripeWebhookEventRepo = new StripeWebhookEventRepo(ctx.db);
   const sessionRepo = new SessionRepo(ctx.db._getPool());
   const securityBanRepo = new SecurityBanRepo(ctx.db);
   const hasher = new HasherRepo();
@@ -429,6 +460,17 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const clearAdminNote = new ClearAdminNote(logRepo, logCache);
   const findLog = new FindLog(logRepo, logCache);
   const listLogs = new ListLogs(logRepo, logCache);
+  const processStripeWebhook = new ProcessStripeWebhook(
+    paymentGateway,
+    stripeWebhookEventRepo,
+    donationRepo,
+    donationCache,
+    userRepo,
+    userCache,
+    confirmDonationBySession,
+    createLog,
+    process.env.STRIPE_WEBHOOK_SECRET ?? "test_webhook_secret",
+  );
 
   const authService = new AuthService(
     loginUser,
@@ -546,6 +588,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     listDonations,
     listSupporterBadges,
   );
+  const stripeWebhookController = new StripeWebhookController(processStripeWebhook);
 
   const authMiddleware = new AuthMiddleware(
     jwtService,
@@ -561,11 +604,13 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const securityGuardMiddleware = new SecurityGuardMiddleware(securityBanService);
 
   const app = Express();
+  app.use(`/api/v${API_VERSION}/stripe/webhook`, Express.raw({ type: "application/json" }));
   app.use(Express.json());
   app.use(requestAuditMiddleware.bindRequestId());
   app.use(performanceMetricsMiddleware.captureHttpDuration());
   app.use(requestAuditMiddleware.logResponse());
   app.use(securityGuardMiddleware.blockBannedIp());
+  app.post(`/api/v${API_VERSION}/stripe/webhook`, stripeWebhookController.handle);
   app.use(
     buildApiRouter({
       userController,

@@ -13,6 +13,7 @@ import { AsteroidController } from "../../presentation/controllers/Asteroid.cont
 import { LogController } from "../../presentation/controllers/Log.controller";
 import { MetricController } from "../../presentation/controllers/Metric.controller";
 import { DonationController } from "../../presentation/controllers/Donation.controller";
+import { StripeWebhookController } from "../../presentation/controllers/StripeWebhook.controller";
 import { IJWT, JwtClaims } from "../../app/interfaces/Jwt.port";
 
 export const IDS = {
@@ -473,6 +474,9 @@ export function buildTestApi(): {
         url: "https://billing.stripe.com/p/session_mock",
       })),
     },
+    processStripeWebhook: {
+      execute: jest.fn(async () => ({ duplicate: false })),
+    },
     confirmDonationBySession: {
       execute: jest.fn(async () => undefined),
     },
@@ -695,8 +699,10 @@ export function buildTestApi(): {
     mocks.listDonations as any,
     mocks.listSupporterBadges as any,
   );
+  const stripeWebhookController = new StripeWebhookController(mocks.processStripeWebhook as any);
 
   const app = Express();
+  app.use("/api/v1/stripe/webhook", Express.raw({ type: "application/json" }));
   app.use(Express.json());
   const auth = new AuthMiddleware(new FakeJwt(), {}, mocks.securityBanService as any);
   const scope = new ScopeMiddleware();
@@ -717,6 +723,7 @@ export function buildTestApi(): {
       scope,
     }),
   );
+  app.post("/api/v1/stripe/webhook", stripeWebhookController.handle);
 
   return { app, mocks: mocks as unknown as Record<string, Record<string, jest.Mock>> };
 }
