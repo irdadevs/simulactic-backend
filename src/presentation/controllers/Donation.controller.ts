@@ -53,27 +53,12 @@ export class DonationController {
 
   public createPortalSession = async (req: Request, res: Response) => {
     try {
-      console.log("[DONATION.PORTAL] request received", {
-        userId: req.auth.userId,
-        role: req.auth.userRole,
-        body: req.body,
-      });
-
       const parsedBody = CreateCustomerPortalSessionDTO.safeParse(req.body);
-      if (!parsedBody.success) {
-        console.log("[DONATION.PORTAL] invalid body", parsedBody.error.flatten());
-        return invalidBody(res, parsedBody.error);
-      }
+      if (!parsedBody.success) return invalidBody(res, parsedBody.error);
 
       const result = await this.createCustomerPortalSession.execute(req.auth.userId, parsedBody.data);
-      console.log("[DONATION.PORTAL] session created", {
-        userId: req.auth.userId,
-        returnUrl: parsedBody.data.returnUrl,
-        portalUrl: result.url,
-      });
       return res.status(200).json(result);
     } catch (err: unknown) {
-      console.error("[DONATION.PORTAL] failed", err);
       return errorHandler(err, res);
     }
   };
