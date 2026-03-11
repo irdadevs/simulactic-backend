@@ -128,16 +128,29 @@ export class PaymentGatewayRepo implements IPaymentGateway {
   }): Promise<{ url: string }> {
     const client = this.requireClient();
 
+    console.log("[STRIPE.PORTAL] creating billing portal session", {
+      customerId: params.customerId,
+      returnUrl: params.returnUrl,
+    });
+
     const session = await client.billingPortal.sessions.create({
       customer: params.customerId,
       return_url: params.returnUrl,
     });
 
     if (!session.url) {
+      console.error("[STRIPE.PORTAL] stripe session missing url", {
+        customerId: params.customerId,
+      });
       throw ErrorFactory.infra("INFRA.TRANSACTION_FAILED", {
         cause: "Stripe portal session did not return url",
       });
     }
+
+    console.log("[STRIPE.PORTAL] billing portal session created", {
+      customerId: params.customerId,
+      url: session.url,
+    });
 
     return { url: session.url };
   }

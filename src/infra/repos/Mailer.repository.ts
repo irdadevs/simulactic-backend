@@ -169,7 +169,7 @@ export class MailerRepo implements IMailer {
   async send(to: Email, subject: string, body: string): Promise<void> {
     const payload = body.trim();
     const isVerification = subject === "Simulactic - Verification code";
-    const isPasswordReset = subject === "Galactic API - Password reset";
+    const isPasswordReset = subject === "Simulactic - Password reset";
     const html = isVerification
       ? this.renderVerificationTemplate(payload)
       : isPasswordReset
