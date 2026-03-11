@@ -306,6 +306,12 @@ Webhook lifecycle notes:
   - `invoice.payment_failed` marks the recurring donation as `failed`.
   - `customer.subscription.deleted` marks the recurring donation as `canceled`.
 - Donation cache is invalidated and supporter progress is refreshed on webhook-driven state changes.
+- Webhook processing is also recorded through the normal app log pipeline with source:
+  - `stripe.webhook`
+- Current observability split:
+  - app logs: yes
+  - dedicated webhook persistence table: yes
+  - app metrics: not yet
 
 Donation portal contract:
 
@@ -414,6 +420,9 @@ Populate cache invalidation:
 - HTTP performance middleware tracks request duration metrics.
 - DB query/transaction timings are reported to metrics.
 - Maintenance runs are persisted to `logs.maintenance_job_runs`.
+- Stripe webhook lifecycle emits application logs with source `stripe.webhook`.
+- Stripe webhook deliveries are also persisted separately in `billing.stripe_webhook_events` for idempotency and retry/failure inspection.
+- Stripe webhook processing is not yet emitted as performance/business metrics.
 
 ## Migrations
 
