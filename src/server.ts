@@ -25,6 +25,7 @@ import { LoginUser } from "./app/use-cases/commands/users/LoginUser.command";
 import { HasherRepo } from "./infra/repos/Hasher.repository";
 import { SignupUser } from "./app/use-cases/commands/users/SignupUser.command";
 import { CreateAdmin } from "./app/use-cases/commands/users/CreateAdmin.command";
+import { ResetPassword } from "./app/use-cases/commands/users/ResetPassword.command";
 import { VerifyUser } from "./app/use-cases/commands/users/VerifyUser.command";
 import { ChangeEmail } from "./app/use-cases/commands/users/ChangeEmail.command";
 import { ChangePassword } from "./app/use-cases/commands/users/ChangePassword.command";
@@ -304,6 +305,7 @@ async function start(): Promise<void> {
     const loginUser = new LoginUser(userRepo, hasher);
     const signupUser = new SignupUser(userRepo, hasher, mailer, userCache);
     const createAdminUser = new CreateAdmin(userRepo, hasher, userCache);
+    const resetPasswordUser = new ResetPassword(userRepo, hasher, mailer, sessionRepo, userCache);
     const verifyUser = new VerifyUser(userRepo, hasher, userCache);
     const resendVerificationCode = new ResendVerificationCode(userRepo, hasher, mailer, userCache);
     const changeEmailUser = new ChangeEmail(userRepo, userCache);
@@ -516,6 +518,7 @@ async function start(): Promise<void> {
     const platformService = new PlatformService(
       signupUser,
       createAdminUser,
+      resetPasswordUser,
       verifyUser,
       resendVerificationCode,
       changeEmailUser,

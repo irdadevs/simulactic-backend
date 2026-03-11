@@ -18,6 +18,7 @@ const describeReal = RUN_REAL_INFRA_TESTS ? describe : describe.skip;
 describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
   let infra: RealInfraContext;
   let app: ExpressApp;
+  let getLatestMail: (email: string) => { subject: string; body: string } | null;
 
   let userA: { id: string; email: string; username: string };
   let userB: { id: string; email: string; username: string };
@@ -53,6 +54,7 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
 
     const built = buildRealApiApp(infra);
     app = built.app;
+    getLatestMail = built.getLatestMail;
 
     userA = await built.seedUser({
       email: "e2e.user.a@test.local",
@@ -225,6 +227,30 @@ describeReal("API E2E (real infra) - auth, ownership and lifecycle", () => {
 
     expect(createdAdminLogin.body.user.role).toBe("Admin");
     expect(createdAdminLogin.body.user.verified).toBe(true);
+  });
+
+  test("password reset replaces the current password and emails the temporary one", async () => {
+    await request(app)
+      .post("/api/v1/users/password/reset")
+      .send({ email: userA.email })
+      .expect(204);
+
+    const mail = getLatestMail(userA.email);
+    expect(mail).not.toBeNull();
+    expect(mail?.subject).toBe("Galactic API - Password reset");
+    expect(mail?.body).toBeTruthy();
+
+    await request(app)
+      .post("/api/v1/users/login")
+      .send({ email: userA.email, rawPassword: password })
+      .expect(400);
+
+    const tempLogin = await request(app)
+      .post("/api/v1/users/login")
+      .send({ email: userA.email, rawPassword: String(mail?.body) })
+      .expect(200);
+
+    expect(tempLogin.body.user.id).toBe(userA.id);
   });
 
   test("forbids non-owner access to another user's galaxy and nested resources", async () => {

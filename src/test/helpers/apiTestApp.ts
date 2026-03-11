@@ -160,6 +160,7 @@ export function buildTestApi(): {
           verifiedAt: new Date("2026-01-03T00:00:00.000Z"),
         }),
       ),
+      resetPassword: jest.fn(async () => undefined),
       changeEmail: jest.fn(async () => undefined),
       changePassword: jest.fn(async () => undefined),
       changeUsername: jest.fn(async () => undefined),

@@ -4,6 +4,7 @@ import { ChangePasswordDTO } from "../../../presentation/security/users/ChangePa
 import { ChangeRoleDTO } from "../../../presentation/security/users/ChangeRole.dto";
 import { ChangeUsernameDTO } from "../../../presentation/security/users/ChangeUsername.dto";
 import { CreateAdminDTO } from "../../../presentation/security/users/CreateAdmin.dto";
+import { ResetPasswordDTO } from "../../../presentation/security/users/ResetPassword.dto";
 import { SignupDTO } from "../../../presentation/security/users/Signup.dto";
 import { VerifyDTO } from "../../../presentation/security/users/Verify.dto";
 import { ResendVerificationDTO } from "../../../presentation/security/users/ResendVerification.dto";
@@ -12,6 +13,7 @@ import { ChangePassword } from "../../use-cases/commands/users/ChangePassword.co
 import { ChangeRole } from "../../use-cases/commands/users/ChangeRole.command";
 import { ChangeUsername } from "../../use-cases/commands/users/ChangeUsername.command";
 import { CreateAdmin } from "../../use-cases/commands/users/CreateAdmin.command";
+import { ResetPassword } from "../../use-cases/commands/users/ResetPassword.command";
 import { ResendVerificationCode } from "../../use-cases/commands/users/ResendVerificationCode.command";
 import { SignupUser } from "../../use-cases/commands/users/SignupUser.command";
 import { VerifyUser } from "../../use-cases/commands/users/VerifyUser.command";
@@ -20,6 +22,7 @@ export class PlatformService {
   constructor(
     private readonly signupUser: SignupUser,
     private readonly createAdminUser: CreateAdmin,
+    private readonly resetPasswordUser: ResetPassword,
     private readonly verifyUser: VerifyUser,
     private readonly resendVerificationCode: ResendVerificationCode,
     private readonly changeEmailUser: ChangeEmail,
@@ -34,6 +37,10 @@ export class PlatformService {
 
   createAdmin(dto: CreateAdminDTO) {
     return this.createAdminUser.execute(dto);
+  }
+
+  resetPassword(dto: ResetPasswordDTO) {
+    return this.resetPasswordUser.execute(dto);
   }
 
   verify(dto: VerifyDTO) {

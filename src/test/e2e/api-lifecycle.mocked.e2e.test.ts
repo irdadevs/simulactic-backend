@@ -42,6 +42,18 @@ describeMocked("API E2E (mocked) - auth, ownership and validation boundaries", (
     expect(mocks.authService.refresh).not.toHaveBeenCalled();
   });
 
+  test("allows password reset requests without auth", async () => {
+    const { app, mocks } = buildTestApi();
+    await request(app)
+      .post("/api/v1/users/password/reset")
+      .send({ email: "user.reset@test.com" })
+      .expect(204);
+
+    expect(mocks.platformService.resetPassword).toHaveBeenCalledWith({
+      email: "user.reset@test.com",
+    });
+  });
+
   test("allows any authenticated user to create galaxies and injects ownerId from auth context", async () => {
     const { app, mocks } = buildTestApi();
     await request(app)

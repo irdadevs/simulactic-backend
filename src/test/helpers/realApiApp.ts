@@ -28,7 +28,6 @@ import DonationRepo from "../../infra/repos/Donation.repository";
 import { SessionRepo } from "../../infra/repos/Session.repository";
 import { SecurityBanRepo } from "../../infra/repos/SecurityBan.repository";
 import { HasherRepo } from "../../infra/repos/Hasher.repository";
-import { MailerRepo } from "../../infra/repos/Mailer.repository";
 import JwtService from "../../infra/repos/Jwt.repository";
 import { HealthQuery } from "../../app/use-cases/queries/Health.query";
 import FindUser from "../../app/use-cases/queries/users/FindUser.query";
@@ -36,6 +35,7 @@ import { ListUsers } from "../../app/use-cases/queries/users/ListUsers.query";
 import { LoginUser } from "../../app/use-cases/commands/users/LoginUser.command";
 import { SignupUser } from "../../app/use-cases/commands/users/SignupUser.command";
 import { CreateAdmin } from "../../app/use-cases/commands/users/CreateAdmin.command";
+import { ResetPassword } from "../../app/use-cases/commands/users/ResetPassword.command";
 import { VerifyUser } from "../../app/use-cases/commands/users/VerifyUser.command";
 import { ResendVerificationCode } from "../../app/use-cases/commands/users/ResendVerificationCode.command";
 import { ChangeEmail } from "../../app/use-cases/commands/users/ChangeEmail.command";
@@ -116,8 +116,9 @@ import { FindDonation } from "../../app/use-cases/queries/donations/FindDonation
 import { ListDonations } from "../../app/use-cases/queries/donations/ListDonations.query";
 import { GetSupporterProgress } from "../../app/use-cases/queries/donations/GetSupporterProgress.query";
 import { ListSupporterBadges } from "../../app/use-cases/queries/donations/ListSupporterBadges.query";
-import { User } from "../../domain/aggregates/User";
+import { Email, User } from "../../domain/aggregates/User";
 import { RealInfraContext } from "./realInfra";
+import { IMailer } from "../../app/interfaces/Mailer.port";
 import {
   IPaymentGateway,
   RetrievedCheckoutSession,
@@ -171,7 +172,33 @@ class FakePaymentGateway implements IPaymentGateway {
 export type RealApiApp = {
   app: ExpressApp;
   seedUser: (input: SeedUserInput) => Promise<{ id: string; email: string; username: string }>;
+  getLatestMail: (email: string) => { subject: string; body: string } | null;
 };
+
+class CapturingMailer implements IMailer {
+  private readonly sent = new Map<string, Array<{ subject: string; body: string }>>();
+
+  genCode(long = 8): string {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+    for (let i = 0; i < long; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
+  async send(to: Email, subject: string, body: string): Promise<void> {
+    const key = to.toString();
+    const messages = this.sent.get(key) ?? [];
+    messages.push({ subject, body });
+    this.sent.set(key, messages);
+  }
+
+  getLatest(email: string): { subject: string; body: string } | null {
+    const messages = this.sent.get(email.trim().toLowerCase()) ?? [];
+    return messages.length > 0 ? messages[messages.length - 1] : null;
+  }
+}
 
 export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const userRepo = new UserRepo(ctx.db);
@@ -187,7 +214,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const sessionRepo = new SessionRepo(ctx.db._getPool());
   const securityBanRepo = new SecurityBanRepo(ctx.db);
   const hasher = new HasherRepo();
-  const mailer = new MailerRepo();
+  const mailer = new CapturingMailer();
   const jwtService = new JwtService();
   const userCache = new UserCacheService(ctx.cache);
   const galaxyCache = new GalaxyCacheService(ctx.cache);
@@ -212,6 +239,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const loginUser = new LoginUser(userRepo, hasher);
   const signupUser = new SignupUser(userRepo, hasher, mailer, userCache);
   const createAdminUser = new CreateAdmin(userRepo, hasher, userCache);
+  const resetPasswordUser = new ResetPassword(userRepo, hasher, mailer, sessionRepo, userCache);
   const verifyUser = new VerifyUser(userRepo, hasher, userCache);
   const resendVerificationCode = new ResendVerificationCode(userRepo, hasher, mailer, userCache);
   const changeEmailUser = new ChangeEmail(userRepo, userCache);
@@ -405,6 +433,7 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
   const platformService = new PlatformService(
     signupUser,
     createAdminUser,
+    resetPasswordUser,
     verifyUser,
     resendVerificationCode,
     changeEmailUser,
@@ -559,5 +588,9 @@ export function buildRealApiApp(ctx: RealInfraContext): RealApiApp {
     return { id: saved.id, email: saved.email, username: saved.username };
   };
 
-  return { app, seedUser };
+  return {
+    app,
+    seedUser,
+    getLatestMail: (email: string) => mailer.getLatest(email),
+  };
 }
