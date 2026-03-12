@@ -5,18 +5,12 @@ CREATE TABLE IF NOT EXISTS assets.resource_families (
     name non_empty_text NOT NULL UNIQUE
 )
 
-CREATE TABLE IF NOT EXISTS assets.resource_tiers(
-    id integer PRIMARY KEY,
-    tier non_empty_text NOT NULL UNIQUE CHECK(char_length(tier) = 1)
-)
-
 CREATE TABLE
     IF NOT EXISTS assets.resources (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         name non_empty_text NOT NULL UNIQUE,
         description non_empty_text NOT NULL,
-        family non_empty_text NOT NULL REFERENCES assets.resource_families(id),
-        tier non_empty_text NOT NULL REFERENCES assets.resource_tiers(id)
+        family_id non_empty_text NOT NULL REFERENCES assets.resource_families(id),
     );
 
 CREATE TABLE IF NOT EXISTS assets.star_resources (

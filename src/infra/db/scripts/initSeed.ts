@@ -78,6 +78,21 @@ async function main() {
       `,
     );
 
+    logInfo("seeding resources families");
+    await uow.db.query(
+      `
+      INSERT INTO assets.resource_families (id, name)
+      VALUES
+        (1, 'energy'),
+        (2, 'raw'),
+        (3, 'refined'),
+        (4, 'rare'),
+        (5, 'exotic'),
+      ON CONFLICT (id, name) DO UPDATE SET
+        name = EXCLUDED.name,
+      `,
+    );
+
     await uow.commit();
     logSuccess("seed completed");
   } catch (err) {

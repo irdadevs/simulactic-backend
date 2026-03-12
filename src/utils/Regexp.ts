@@ -8,4 +8,6 @@ export const REGEXP = {
   moonName: /^[\p{L}\p{N}-]{3,25}$/u,
   asteroidName: /^[\p{L}\p{N}-]{3,25}$/u,
   username: /^[\p{L}\p{N}_-]{3,25}$/u,
+  resourceName: /^[\p{L}\p{N}-]{2,15}$/u,
+  resourceDescription: /^[\p{L}\p{N}-]{10,255}$/u,
 };

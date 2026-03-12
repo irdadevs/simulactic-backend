@@ -286,6 +286,16 @@ export const ErrorMap = {
     httpCode: 400,
     public: true,
   },
+  INVALID_RESOURCE_NAME: {
+    code: "DOMAIN.INVALID_RESOURCE_NAME",
+    httpCode: 400,
+    public: true,
+  },
+  INVALID_RESOURCE_DESCRIPTION: {
+    code: "DOMAIN.INVALID_RESOURCE_DESCRIPTION",
+    httpCode: 400,
+    public: true,
+  },
 } as const satisfies Record<string, ErrorDef>;
 
 export type SharedError = (typeof ErrorMap)[keyof typeof ErrorMap];
@@ -351,6 +361,8 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorMap.INVALID_MOON_ORBITAL.code]: 'Invalid moon orbital "${orbital}".',
   [ErrorMap.INVALID_MOON_VALUE.code]: 'Invalid value for moon field "${field}".',
   [ErrorMap.GALAXY_NAME_ALREADY_EXIST.code]: 'Galaxy name "${name}" is already in use.',
+  [ErrorMap.INVALID_RESOURCE_NAME.code]: 'Invalid resource name "${name}".',
+  [ErrorMap.INVALID_RESOURCE_DESCRIPTION.code]: "Invalid resource description.",
 };
 
 export const ErrorFactory = createErrorFactory(ErrorMap, ErrorMessages);
