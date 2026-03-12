@@ -187,7 +187,7 @@ export class UserController {
       res.cookie(
         AUTH_COOKIE_NAMES.accessToken,
         result.accessToken,
-        this.cookieOptions(TOKEN_TIMES_MAP.fifteenMinutes * 1000),
+        this.cookieOptions(TOKEN_TIMES_MAP.twelveHours * 1000),
       );
       res.cookie(
         AUTH_COOKIE_NAMES.refreshToken,
@@ -220,7 +220,7 @@ export class UserController {
       res.cookie(
         AUTH_COOKIE_NAMES.accessToken,
         tokens.accessToken,
-        this.cookieOptions(TOKEN_TIMES_MAP.fifteenMinutes * 1000),
+        this.cookieOptions(TOKEN_TIMES_MAP.twelveHours * 1000),
       );
       res.cookie(
         AUTH_COOKIE_NAMES.refreshToken,

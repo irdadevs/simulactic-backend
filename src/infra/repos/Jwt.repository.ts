@@ -49,7 +49,7 @@ export default class JwtService implements IJWT {
     return jwt.sign(
       claims,
       this.accessSecret,
-      this.baseSignOptions(TOKEN_TIMES_MAP.fifteenMinutes),
+      this.baseSignOptions(TOKEN_TIMES_MAP.twelveHours),
     );
   }
 
